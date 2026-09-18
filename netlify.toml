@@ -1,0 +1,51 @@
+[build]
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "22"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Rules are matched top to bottom. API + OAuth routes go to the function;
+# everything else falls back to the booking page (static files still win).
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin/connect"
+  to = "/.netlify/functions/api/admin/connect"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/oauth/callback"
+  to = "/.netlify/functions/api/oauth/callback"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+
+[[headers]]
+  for = "/admin*"
+  [headers.values]
+    X-Robots-Tag = "noindex"

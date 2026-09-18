@@ -1,38 +1,61 @@
 # MicCal: Blurred Spaces Scheduling
 
-Your own branded booking page, similar to Calendly. Guests pick a time, the app checks **every connected Google calendar** for conflicts, and the booking goes on your calendar with a Google Meet link. The guest also gets an invite.
+Your own branded booking page, similar to Calendly, hosted on **Netlify**. Guests pick a time, the app checks **every connected Google calendar** for conflicts, and the booking goes on your calendar with a Google Meet link. The guest also gets an invite.
 
-- No dependencies to install. Needs only Python 3.9 or newer.
-- Hours, durations, buffers, and branding are set in `config.json`.
-- Connect Google accounts and copy share links at `/admin`.
-
-## Run locally
-
-```bash
-cp .env.example .env      # then set ADMIN_PASSWORD
-python3 server.py         # http://localhost:3000
+```
+public/                 booking page (index.html), admin page, logo, background
+netlify/functions/api.mjs   API: availability, booking, Google sign-in, admin
+lib/core.mjs            time-zone + availability math (pure JS, unit-testable)
+config.json             your hours, meeting types, branding
+netlify.toml            routing + Node version
 ```
 
-Until a Google account is connected, the page runs in **demo mode**: sample availability, and no events are created.
+Your Google connections are stored in **Netlify Blobs**, Netlify's built-in storage. There's no database or disk to set up.
 
-## Connect Google (one-time, about 10 minutes)
+## 1. Deploy to Netlify
 
-1. Go to https://console.cloud.google.com and create a project, for example "Blurred Spaces Scheduling".
-2. **APIs & Services → Library** → enable **Google Calendar API**.
-3. **APIs & Services → OAuth consent screen (Google Auth Platform)**
-   - Choose User type **External**. If both calendars are in the same Google Workspace, use **Internal** instead.
-   - Set the app name to "Blurred Spaces" and upload the logo.
-   - Under Data access, add the scopes `.../auth/calendar.readonly` and `.../auth/calendar.events`.
-   - Under Audience, add both of your Google emails as test users. Then click **Publish app**. While the app stays in "Testing" status, Google expires the connection every 7 days. Once published, Google shows you an "unverified app" warning; click *Advanced → Go to…*. Only you ever see this screen, because guests never sign in.
-4. **Credentials → Create credentials → OAuth client ID → Web application**
-   - Authorized redirect URI: `http://localhost:3000/oauth/callback`. For the live site, also add `https://YOUR-DOMAIN/oauth/callback`.
-5. Put the client ID and secret into `.env`, then restart `python3 server.py`.
-6. Open `/admin`, sign in, and click **Connect Google account**. Do this once for **each** Google account.
-   - Check which calendars to include in the conflict check for each account.
-   - Pick which account is **Book to**. That account sends the invite and holds the Meet link.
-   - If `mirror_to_other_calendars` is `true` in `config.json`, the other account also gets a copy of the event, so both calendars show it.
+1. On app.netlify.com, go to **Add new project → Import an existing project → GitHub** and pick `blurredspaces/cal`.
+2. Build settings are read from `netlify.toml`, so leave everything as it is and click **Deploy**.
+3. Under **Project configuration → Environment variables**, add:
+
+   | Key | Value |
+   |---|---|
+   | `ADMIN_PASSWORD` | a strong password for `/admin` |
+   | `GOOGLE_CLIENT_ID` | from step 2 |
+   | `GOOGLE_CLIENT_SECRET` | from step 2 |
+   | `BASE_URL` | `https://book.blurredspaces.com`. If you leave this out, it uses Netlify's site URL. |
+
+   After adding or changing variables, redeploy with **Deploys → Trigger deploy**.
+
+4. **Custom domain:** go to **Domain management → Add a domain** and enter `book.blurredspaces.com`. Then, wherever your DNS is managed, add:
+   ```
+   CNAME   book   →   <your-site-name>.netlify.app
+   ```
+   Your WordPress site at `blurredspaces.com` is not affected. Netlify issues HTTPS automatically.
+
+## 2. Connect Google (one-time)
+
+1. Go to https://console.cloud.google.com and create a project, then **enable Google Calendar API**.
+2. **OAuth consent screen**
+   - Choose User type **External**, name the app "Blurred Spaces", and add your logo.
+   - Add the scopes `calendar.readonly` and `calendar.events`.
+   - Add both of your Google emails as test users.
+   - Then click **Publish app**. While it's in "Testing", Google disconnects you every 7 days. Once published, you'll see an "unverified app" screen; click *Advanced → Go to…*. Only you ever see this, because guests never sign in to Google.
+3. Go to **Credentials → Create credentials → OAuth client ID → Web application**. Add these **Authorized redirect URIs**:
+   ```
+   https://book.blurredspaces.com/oauth/callback
+   https://<your-site-name>.netlify.app/oauth/callback
+   ```
+4. Copy the client ID and secret into the Netlify environment variables, then redeploy.
+5. Open `https://book.blurredspaces.com/admin`, sign in, and click **Connect Google account**. Do this once for **each** Google account.
+   - Check which calendars to include in the conflict check.
+   - Pick the **Book to** account. It sends the guest invite and creates the Meet link.
+
+Until an account is connected, the booking page runs in **demo mode**: sample times, and no real events are created.
 
 ## Settings (`config.json`)
+
+Edit the file, commit, and push. Netlify redeploys automatically.
 
 | key | meaning |
 |---|---|
@@ -41,19 +64,20 @@ Until a Google account is connected, the page runs in **demo mode**: sample avai
 | `slot_interval` | Minutes between start times |
 | `buffer_minutes` | Minimum gap kept free around existing meetings |
 | `min_notice_hours` / `max_days_ahead` | How soon, and how far ahead, guests can book |
+| `mirror_to_other_calendars` | Also put a copy of the event on your other connected account(s) |
 | `event_types` | Your meeting types. Each `slug` becomes a link, e.g. `/intro` |
 
-## Put it online (so you can send the link)
+## Local development (optional)
 
-It needs a public HTTPS address. Two easy options:
-
-- **Render.com**: create a new Web Service from this folder or repo. Start command: `python3 server.py`. Add a **persistent disk** mounted at `/var/data` and set `DATA_DIR=/var/data`, because that's where the Google connection is stored. Set the env vars from `.env`, with `BASE_URL=https://book.blurredspaces.com`.
-- **Any small VPS** (DigitalOcean, Lightsail): run `python3 server.py` behind Caddy or nginx for HTTPS.
-
-Then point a subdomain such as `book.blurredspaces.com` at the host, and add that domain's `/oauth/callback` to your Google OAuth client.
+This requires Node 22 or newer:
+```bash
+npm install
+npx netlify-cli dev      # http://localhost:8888, with .env for variables
+```
+For local Google testing, also add `http://localhost:8888/oauth/callback` as a redirect URI.
 
 ## Security notes
 
-- `data/accounts.json` holds your Google refresh tokens. It is git-ignored and written with `600` permissions. Never share it.
-- The admin area uses a signed cookie, so set a strong `ADMIN_PASSWORD`.
-- Every booking re-checks live availability under a lock, so two guests can't take the same slot. Each IP address can make at most 8 booking attempts per hour.
+- Google refresh tokens are stored in Netlify Blobs (store `miccal`) and are never sent to the browser.
+- Admin sessions use an HMAC-signed, HttpOnly cookie, so set a strong `ADMIN_PASSWORD`.
+- Every booking re-checks live availability before creating the event. Rate limiting is per function instance and best-effort.

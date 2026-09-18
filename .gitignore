@@ -1,5 +1,6 @@
 .env
 data/
-__pycache__/
+node_modules/
+.netlify/
 temporary screenshots/
 .DS_Store
