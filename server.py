@@ -29,9 +29,6 @@ from zoneinfo import ZoneInfo
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(ROOT, "static")
-DATA = os.path.join(ROOT, "data")
-ACCOUNTS_FILE = os.path.join(DATA, "accounts.json")
-os.makedirs(DATA, exist_ok=True)
 
 
 # ---------------------------------------------------------------- env / config
@@ -49,6 +46,10 @@ def load_env():
 
 
 load_env()
+# Where Google tokens are stored. On Render, point this at the persistent disk (e.g. /var/data).
+DATA = os.environ.get("DATA_DIR") or os.path.join(ROOT, "data")
+ACCOUNTS_FILE = os.path.join(DATA, "accounts.json")
+os.makedirs(DATA, exist_ok=True)
 PORT = int(os.environ.get("PORT", "3000"))
 BASE_URL = os.environ.get("BASE_URL", f"http://localhost:{PORT}").rstrip("/")
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")

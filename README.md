@@ -47,7 +47,7 @@ Until a Google account is connected, the page runs in **demo mode**: sample avai
 
 It needs a public HTTPS address. Two easy options:
 
-- **Render.com**: create a new Web Service from this folder or repo. Start command: `python3 server.py`. Add a **persistent disk** mounted at `/…/data`, because that's where the Google connection is stored. Set the env vars from `.env`, with `BASE_URL=https://book.blurredspaces.com`.
+- **Render.com**: create a new Web Service from this folder or repo. Start command: `python3 server.py`. Add a **persistent disk** mounted at `/var/data` and set `DATA_DIR=/var/data`, because that's where the Google connection is stored. Set the env vars from `.env`, with `BASE_URL=https://book.blurredspaces.com`.
 - **Any small VPS** (DigitalOcean, Lightsail): run `python3 server.py` behind Caddy or nginx for HTTPS.
 
 Then point a subdomain such as `book.blurredspaces.com` at the host, and add that domain's `/oauth/callback` to your Google OAuth client.
