@@ -8,11 +8,36 @@
   },
   "timezone": "America/New_York",
   "working_hours": {
-    "mon": [["09:00", "17:00"]],
-    "tue": [["09:00", "17:00"]],
-    "wed": [["09:00", "17:00"]],
-    "thu": [["09:00", "17:00"]],
-    "fri": [["09:00", "15:00"]],
+    "mon": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "tue": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "wed": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "thu": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "fri": [
+      [
+        "09:00",
+        "15:00"
+      ]
+    ],
     "sat": [],
     "sun": []
   },
@@ -23,18 +48,32 @@
   "mirror_to_other_calendars": true,
   "event_types": [
     {
-      "slug": "intro",
-      "title": "Intro Call",
+      "slug": "call",
+      "title": "Call",
       "duration": 30,
-      "location": "zoom",
-      "description": "A quick first conversation to see where your project is headed and how Blurred Spaces can help."
+      "location": "phone",
+      "description": "A 30-minute phone call. Leave your mobile number and Mic will call you at the scheduled time."
     },
     {
-      "slug": "strategy",
-      "title": "Strategy Session",
-      "duration": 60,
+      "slug": "meeting",
+      "title": "55 Min Mtg",
+      "duration": 55,
       "location": "zoom",
       "description": "A focused working session on brand, content, or launch strategy. Come with the problem; leave with a plan."
+    },
+    {
+      "slug": "quick-sync",
+      "title": "Quick Sync",
+      "duration": 15,
+      "location": "zoom",
+      "description": "A quick Zoom sync with Mic Fox for a status update."
+    },
+    {
+      "slug": "sync",
+      "title": "30 Min Sync",
+      "duration": 30,
+      "location": "zoom",
+      "description": "A 30-minute Zoom check-in to review progress, clear blockers, and line up next steps."
     }
   ]
 }

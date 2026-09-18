@@ -201,10 +201,14 @@ async function apiBook(req, body, accounts, ip) {
   const email = String(body.email || "").trim().slice(0, 200);
   const notes = String(body.notes || "").trim().slice(0, 2000);
   const guestTz = String(body.timezone || "").slice(0, 64);
+  const phone = String(body.phone || "").trim().slice(0, 30);
   const start = Date.parse(String(body.start || ""));
   if (!event) return json(400, { error: "Unknown event type" });
   if (!name || !EMAIL_RE.test(email)) return json(400, { error: "Please enter your name and a valid email." });
   if (!Number.isFinite(start)) return json(400, { error: "Invalid start time" });
+  if (event.location === "phone" && (phone.replace(/\D/g, "").length < 7 || !/^[+\d\s().-]+$/.test(phone))) {
+    return json(400, { error: "Please enter a valid mobile number." });
+  }
   if (rateLimited(ip)) return json(429, { error: "Too many booking attempts. Try again later." });
 
   // Re-check live availability (no cache) right before creating the event.
@@ -217,6 +221,7 @@ async function apiBook(req, body, accounts, ip) {
   const description = [
     `Booked via ${cfg.brand.company} scheduling.`,
     `Guest: ${name} <${email}>`,
+    phone && `Mobile: ${phone}`,
     guestTz && `Guest time zone: ${guestTz}`,
     notes && `\nNotes from guest:\n${notes}`,
   ].filter(Boolean).join("\n");
@@ -245,7 +250,8 @@ async function apiBook(req, body, accounts, ip) {
   if (zoom) ev.location = zoom.join_url;
   else if (location === "google_meet") {
     ev.conferenceData = { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
-  } else if (location) ev.location = location;
+  } else if (location === "phone") ev.location = phone;
+  else if (location) ev.location = location;
 
   let created;
   try {

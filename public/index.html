@@ -158,6 +158,7 @@ const tzLabel = tz => { try { const off = new Intl.DateTimeFormat('en-US', { tim
 // ---------- icons ----------
 const I = {
   clock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  phone: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
   video: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
   cal: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   globe: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>',
@@ -167,8 +168,11 @@ const I = {
   check: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 const VIDEO = { zoom: 'Zoom', google_meet: 'Google Meet' };
-const locName = e => VIDEO[e.location] || e.location || 'TBD';
-const locText = e => VIDEO[e.location] ? `${VIDEO[e.location]} — link sent on booking` : (e.location || 'Details sent on booking');
+const isPhone = e => e.location === 'phone';
+const locIcon = e => isPhone(e) ? I.phone : I.video;
+const locName = e => isPhone(e) ? 'Phone call' : VIDEO[e.location] || e.location || 'TBD';
+const locText = e => isPhone(e) ? 'Phone call: Mic calls your mobile'
+  : VIDEO[e.location] ? `${VIDEO[e.location]}: link sent on booking` : (e.location || 'Details sent on booking');
 
 // ---------- routing ----------
 function go(path) { history.pushState({}, '', path); route(); }
@@ -205,8 +209,7 @@ function renderHome() {
   app.innerHTML = `
     ${demo ? demoBanner() : ''}
     <section class="enter">
-      <p class="label mb-4">${esc(brand.host_title)}</p>
-      <h1 class="display display-xl smear" data-text="Book time with ${esc(brand.host_name)}">Book time with ${esc(brand.host_name)}</h1>
+      <h1 class="display display-xl smear" data-text="Book ${esc(brand.host_name)}">Book ${esc(brand.host_name)}</h1>
       <p class="mt-6 max-w-[520px] text-mute text-[15px]">Pick a session below. Times shown are live from my calendars, so everything you see is actually open.</p>
     </section>
     <section class="mt-12 sm:mt-16 grid gap-4 sm:gap-6 md:grid-cols-2 enter-2">
@@ -222,7 +225,7 @@ function renderHome() {
           <p class="mt-4 text-[14px] text-mute">${esc(e.description || '')}</p>
           <div class="mt-6 pt-5 border-t border-white/[.07] flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-mute">
             <span class="flex items-center gap-2">${I.clock} ${e.duration} minutes</span>
-            <span class="flex items-center gap-2">${I.video} ${esc(locName(e))}</span>
+            <span class="flex items-center gap-2">${locIcon(e)} ${esc(locName(e))}</span>
           </div>
         </a>`).join('')}
     </section>`;
@@ -276,7 +279,7 @@ function renderBooking() {
         <h1 class="display text-[52px] sm:text-[60px] mt-3 smear" data-text="${esc(e.title)}">${esc(e.title)}</h1>
         <ul class="mt-6 space-y-3 text-[14px] text-mute">
           <li class="flex items-center gap-3">${I.clock} ${e.duration} min</li>
-          <li class="flex items-start gap-3"><span class="mt-[3px]">${I.video}</span><span>${esc(locText(e))}</span></li>
+          <li class="flex items-start gap-3"><span class="mt-[3px]">${locIcon(e)}</span><span>${esc(locText(e))}</span></li>
           <li id="picked" class="flex items-start gap-3 text-bone ${state.slot ? '' : 'hidden'}"></li>
         </ul>
         <p class="mt-6 text-[14px] text-mute">${esc(e.description || '')}</p>
@@ -384,12 +387,14 @@ function renderForm(errMsg) {
           <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="name" name="name" autocomplete="name" required maxlength="120" placeholder="Your full name"></div>
         <div><label class="label block mb-2" for="email">Email *</label>
           <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="email" name="email" type="email" autocomplete="email" required maxlength="200" placeholder="you@company.com"></div>
+        ${isPhone(state.event) ? `<div><label class="label block mb-2" for="phone">Mobile number *</label>
+          <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="30" placeholder="(555) 123-4567"></div>` : ''}
         <div><label class="label block mb-2" for="notes">What should we cover?</label>
           <textarea class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone min-h-[120px]" id="notes" name="notes" maxlength="2000" placeholder="Anything that will help me prepare."></textarea></div>
       </div>
       <p id="err" class="mt-4 text-[13px] text-[#E8A598] ${errMsg ? '' : 'hidden'}" role="alert">${esc(errMsg || '')}</p>
       <button id="submit" class="btn mt-8 w-full sm:w-auto rounded-full bg-bone text-ink font-bold px-8 py-4 text-[14px] tracking-[.18em] uppercase floating inline-flex items-center justify-center gap-3">Schedule event</button>
-      <p class="mt-4 text-[12px] text-smoke">You'll get a calendar invite${VIDEO[state.event.location] ? ` with a ${VIDEO[state.event.location]} link` : ''} at this email.</p>
+      <p class="mt-4 text-[12px] text-smoke">${isPhone(state.event) ? "You'll get a calendar invite at this email, and Mic will call your mobile at the scheduled time." : `You'll get a calendar invite${VIDEO[state.event.location] ? ` with a ${VIDEO[state.event.location]} link` : ''} at this email.`}</p>
     </form>`;
   $('#back').onclick = () => { state.slot = null; setPicked(); renderCalendar(); };
   $('#name').focus();
@@ -400,19 +405,22 @@ async function submit(ev) {
   ev.preventDefault();
   const f = ev.target, btn = $('#submit'), err = $('#err');
   const name = f.name.value.trim(), email = f.email.value.trim(), notes = f.notes.value.trim();
-  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = 'Please enter your name and a valid email.'; err.classList.remove('hidden'); return; }
+  const phone = f.phone ? f.phone.value.trim() : '';
+  const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail('Please enter your name and a valid email.');
+  if (f.phone && (phone.replace(/\D/g, '').length < 7 || !/^[+\d\s().-]+$/.test(phone))) return fail('Please enter a valid mobile number.');
   btn.disabled = true; btn.innerHTML = '<span class="spin w-4 h-4 rounded-full border-2 border-ink/30 border-t-ink"></span> Booking…';
   try {
     const r = await fetch('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: state.event.slug, start: state.slot, name, email, notes, timezone: state.tz }) });
+      body: JSON.stringify({ event: state.event.slug, start: state.slot, name, email, phone, notes, timezone: state.tz }) });
     const data = await r.json();
     if (r.status === 409) { // slot got taken: refresh availability and send them back
       state.slot = null; state.slots = {}; state.rawSlots = []; setPicked(); await loadMonth();
       const s = $('#stage'); s.insertAdjacentHTML('afterbegin', `<p class="mb-4 text-[13px] text-[#E8A598]" role="alert">${esc(data.error)}</p>`); return;
     }
     if (!r.ok) throw new Error(data.error || 'Booking failed');
-    state.booked = { ...data, name, email }; renderConfirmed();
-  } catch (e) { renderForm(e.message); $('#name').value = name; $('#email').value = email; $('#notes').value = notes; }
+    state.booked = { ...data, name, email, phone }; renderConfirmed();
+  } catch (e) { renderForm(e.message); $('#name').value = name; $('#email').value = email; $('#notes').value = notes; if ($('#phone')) $('#phone').value = phone; }
 }
 
 function renderConfirmed() {
@@ -427,6 +435,7 @@ function renderConfirmed() {
         <p class="font-semibold text-[16px]">${esc(s.event)}</p>
         <p class="flex items-start gap-3 text-mute"><span class="mt-[3px]">${I.cal}</span><span>${fmtTime(s.start, state.tz)} – ${fmtTime(endIso, state.tz)}, ${fmtLong(s.start, state.tz)}</span></p>
         <p class="flex items-center gap-3 text-mute">${I.globe} ${esc(tzLabel(state.tz))}</p>
+        ${s.phone ? `<p class="flex items-center gap-3 text-mute">${I.phone} Mic will call you at <span class="text-bone">${esc(s.phone)}</span></p>` : ''}
         ${s.join_link ? `<p class="flex items-center gap-3 text-mute">${I.video} <a class="lnk underline text-bone break-all rounded" href="${esc(s.join_link)}" target="_blank" rel="noopener">${esc(s.join_link)}</a></p>` : ''}
       </div>
       <p class="mt-6 text-[13px] text-mute">${s.demo ? 'Demo mode: no real invite was sent.' : `A calendar invitation is on its way to <span class="text-bone">${esc(s.email)}</span>.`}</p>
