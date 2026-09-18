@@ -9,7 +9,7 @@
 //   /api/admin/*                     login / logout / manage connected accounts
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
-import cfg from "../../config.json";
+import cfg from "../../miccal.config.json";
 import { computeSlots, demoBusy, iso } from "../../lib/core.mjs";
 
 const env = k => process.env[k] || "";

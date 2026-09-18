@@ -6,7 +6,7 @@ Your own branded booking page, similar to Calendly, hosted on **Netlify**. Guest
 public/                 booking page (index.html), admin page, logo, background
 netlify/functions/api.mjs   API: availability, booking, Google sign-in, admin
 lib/core.mjs            time-zone + availability math (pure JS, unit-testable)
-config.json             your hours, meeting types, branding
+miccal.config.json      your hours, meeting types, branding
 netlify.toml            routing + Node version
 ```
 
@@ -53,7 +53,7 @@ Your Google connections are stored in **Netlify Blobs**, Netlify's built-in stor
 
 Until an account is connected, the booking page runs in **demo mode**: sample times, and no real events are created.
 
-## Settings (`config.json`)
+## Settings (`miccal.config.json`)
 
 Edit the file, commit, and push. Netlify redeploys automatically.
 

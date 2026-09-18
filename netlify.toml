@@ -1,4 +1,6 @@
 [build]
+  # No build step: static pages in public/ + one function. (Overrides any command set in the Netlify UI.)
+  command = "echo 'No build step needed'"
   publish = "public"
 
 [build.environment]
