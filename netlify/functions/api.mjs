@@ -12,7 +12,8 @@ import crypto from "node:crypto";
 import cfg from "../../miccal.config.json";
 import { computeSlots, demoBusy, iso } from "../../lib/core.mjs";
 
-const env = k => process.env[k] || "";
+// Trim: pasted values often carry stray spaces/newlines, which Google rejects as invalid_client.
+const env = k => (process.env[k] || "").trim().replace(/^["']|["']$/g, "");
 const BASE_URL = () => (env("BASE_URL") || env("URL") || "http://localhost:8888").replace(/\/$/, "");
 const REDIRECT_URI = () => BASE_URL() + "/oauth/callback";
 const SCOPES = [
