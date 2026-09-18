@@ -1,0 +1,5 @@
+.env
+data/
+__pycache__/
+temporary screenshots/
+.DS_Store

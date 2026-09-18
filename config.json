@@ -1,0 +1,40 @@
+{
+  "brand": {
+    "company": "Blurred Spaces",
+    "tagline": "Creatively Strategic",
+    "host_name": "Mic Fox",
+    "host_title": "Founder, Blurred Spaces",
+    "website": "https://blurredspaces.com"
+  },
+  "timezone": "America/New_York",
+  "working_hours": {
+    "mon": [["09:00", "17:00"]],
+    "tue": [["09:00", "17:00"]],
+    "wed": [["09:00", "17:00"]],
+    "thu": [["09:00", "17:00"]],
+    "fri": [["09:00", "15:00"]],
+    "sat": [],
+    "sun": []
+  },
+  "slot_interval": 30,
+  "buffer_minutes": 15,
+  "min_notice_hours": 12,
+  "max_days_ahead": 45,
+  "mirror_to_other_calendars": true,
+  "event_types": [
+    {
+      "slug": "intro",
+      "title": "Intro Call",
+      "duration": 30,
+      "location": "google_meet",
+      "description": "A quick first conversation to see where your project is headed and how Blurred Spaces can help."
+    },
+    {
+      "slug": "strategy",
+      "title": "Strategy Session",
+      "duration": 60,
+      "location": "google_meet",
+      "description": "A focused working session on brand, content, or launch strategy. Come with the problem; leave with a plan."
+    }
+  ]
+}

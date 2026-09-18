@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Time — Blurred Spaces</title>
+<meta name="description" content="Book a call with Blurred Spaces. Creatively Strategic.">
+<link rel="icon" href="/static/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0A0A0A', surface: '#111111', elevated: '#181818', float: '#202020',
+          bone: '#EEEBE4', mute: '#8E8B85', smoke: '#55534F',
+        },
+        fontFamily: { display: ['"Bebas Neue"', 'Impact', 'sans-serif'], sans: ['Manrope', 'system-ui', 'sans-serif'] },
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    --ink: #0A0A0A; --bone: #EEEBE4; --mute: #8E8B85; --line: rgba(238,235,228,.09);
+    --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
+    /* spacing tokens */
+    --s1: 4px; --s2: 8px; --s3: 16px; --s4: 24px; --s5: 40px; --s6: 64px;
+  }
+  html { background: var(--ink); }
+  body { font-family: Manrope, system-ui, sans-serif; line-height: 1.7; color: var(--bone); background: var(--ink); -webkit-font-smoothing: antialiased; }
+
+  /* ---------- atmosphere: blurred brand photo + layered radials + grain ---------- */
+  .atmos { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .atmos .photo { position: absolute; inset: -4%; background: url('/static/bg.jpg?v=2') center/cover; opacity: .5; transform: scale(1.06); }
+  .atmos .radials { position: absolute; inset: 0; background:
+      radial-gradient(60% 50% at 18% 12%, rgba(238,235,228,.09), transparent 70%),
+      radial-gradient(45% 45% at 88% 80%, rgba(238,235,228,.06), transparent 70%),
+      radial-gradient(80% 70% at 50% 50%, transparent 30%, rgba(10,10,10,.85) 100%); }
+  .atmos .grain { position: absolute; inset: -50%; opacity: .09; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grain 1.2s steps(6) infinite; }
+  @keyframes grain { 0%{transform:translate(0,0)} 20%{transform:translate(-3%,2%)} 40%{transform:translate(2%,-3%)} 60%{transform:translate(-2%,-1%)} 80%{transform:translate(3%,3%)} 100%{transform:translate(0,0)} }
+
+  /* ---------- depth system ---------- */
+  .surface  { background: rgba(17,17,17,.82); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+              border: 1px solid var(--line);
+              box-shadow: 0 1px 0 rgba(238,235,228,.05) inset, 0 2px 4px rgba(0,0,0,.25), 0 12px 32px rgba(0,0,0,.35), 0 40px 90px -20px rgba(0,0,0,.6); }
+  .elevated { background: #181818; border: 1px solid var(--line);
+              box-shadow: 0 1px 0 rgba(238,235,228,.04) inset, 0 6px 18px -6px rgba(0,0,0,.5); }
+  .floating { box-shadow: 0 10px 30px -8px rgba(238,235,228,.18), 0 2px 6px rgba(0,0,0,.4); }
+
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .42em; text-transform: uppercase; color: var(--mute); }
+  .display { font-family: 'Bebas Neue', Impact, sans-serif; letter-spacing: -0.01em; line-height: .92; }
+  .display-xl { font-size: clamp(56px, 11vw, 132px); letter-spacing: -0.03em; }
+
+  /* motion-blur wordmark treatment used on headings */
+  .smear { position: relative; display: inline-block; }
+  .smear::after { content: attr(data-text); position: absolute; left: 0; top: 0; color: var(--bone); opacity: .22;
+                  transform: translateX(6px) scaleX(1.03); filter: blur(5px); pointer-events: none; }
+
+  /* ---------- interactive primitives (transform/opacity only) ---------- */
+  .btn { transition: transform .35s var(--spring), opacity .2s var(--ease); will-change: transform; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0) scale(.97); }
+  .btn:focus-visible, .day:focus-visible, .slot:focus-visible, .card:focus-visible, .field:focus-visible, .lnk:focus-visible {
+    outline: 2px solid var(--bone); outline-offset: 3px; }
+  .btn[disabled] { opacity: .45; transform: none; cursor: not-allowed; }
+
+  .card { transition: transform .45s var(--spring); }
+  .card:hover { transform: translateY(-4px); }
+  .card:active { transform: translateY(-1px) scale(.99); }
+  .card .arrow { transition: transform .45s var(--spring); }
+  .card:hover .arrow { transform: translateX(6px); }
+
+  .day { position: relative; transition: transform .3s var(--spring); }
+  .day .bg { position: absolute; inset: 3px; border-radius: 999px; background: rgba(238,235,228,.07); opacity: 1; transition: opacity .2s var(--ease), transform .35s var(--spring); }
+  .day.avail:hover .bg { transform: scale(1.1); opacity: 1; background: rgba(238,235,228,.16); }
+  .day.avail:active { transform: scale(.94); }
+  .day.sel .bg { background: var(--bone); }
+  .day.sel { color: var(--ink); font-weight: 700; }
+  .day .dot { position: absolute; bottom: 7px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 99px; background: currentColor; opacity: .7; }
+  .day.today:not(.sel) { text-decoration: underline; text-underline-offset: 4px; }
+
+  .slot { transition: transform .35s var(--spring), opacity .2s; }
+  .slot:hover { transform: translateX(3px); }
+  .slot:active { transform: scale(.97); }
+  .slotrow .confirm { transform: translateX(12px); opacity: 0; transition: transform .45s var(--spring), opacity .25s var(--ease); }
+  .slotrow.open .confirm { transform: none; opacity: 1; }
+
+  .field { background: #0E0E0E; border: 1px solid rgba(238,235,228,.12); transition: opacity .2s; }
+  .field::placeholder { color: #5f5d59; }
+  .field:hover { border-color: rgba(238,235,228,.24); }
+  .field:focus { border-color: var(--bone); outline: none; }
+
+  .lnk { transition: opacity .2s var(--ease); }
+  .lnk:hover { opacity: .7; }
+  .lnk:active { opacity: .5; }
+
+  .enter { animation: enter .6s var(--ease) both; }
+  .enter-2 { animation: enter .6s .08s var(--ease) both; }
+  .enter-3 { animation: enter .6s .16s var(--ease) both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .pop { animation: pop .7s var(--spring) both; }
+  @keyframes pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+  .spin { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .scroll-slim::-webkit-scrollbar { width: 6px; } .scroll-slim::-webkit-scrollbar-thumb { background: rgba(238,235,228,.14); border-radius: 9px; }
+  select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E8B85' fill='none' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body class="min-h-screen">
+  <div class="atmos" aria-hidden="true"><div class="photo"></div><div class="radials"></div><div class="grain"></div></div>
+
+  <div class="relative z-10 min-h-screen flex flex-col">
+    <header class="px-4 sm:px-10 pt-6 sm:pt-8 flex items-center justify-between gap-4">
+      <a href="/" data-nav class="lnk flex items-center gap-4 rounded" aria-label="Blurred Spaces — all meeting types">
+        <img src="/static/logo.png" alt="Blurred Spaces" class="h-10 sm:h-12 w-auto">
+      </a>
+      <p class="label hidden sm:block" id="tagline">Creatively Strategic</p>
+    </header>
+
+    <main id="app" class="flex-1 w-full max-w-[1120px] mx-auto px-4 sm:px-10 py-10 sm:py-16"></main>
+
+    <footer class="px-4 sm:px-10 pb-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-smoke">
+      <span id="foot-co">© Blurred Spaces</span>
+      <span class="tracking-[.3em] uppercase text-[10px]">Scheduling by Blurred Spaces</span>
+    </footer>
+  </div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const app = $('#app');
+
+const state = {
+  cfg: null, event: null,
+  tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  month: null,          // Date at 1st of viewed month (local fields only matter)
+  slots: {},            // 'YYYY-MM-DD' (guest tz) -> [iso,...]
+  date: null, slot: null, booked: null, loading: false, error: null,
+};
+
+// ---------- time helpers (all display in guest tz) ----------
+const dayKey = (iso, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+const fmtTime = (iso, tz) => new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+const fmtLong = (iso, tz) => new Intl.DateTimeFormat(undefined, { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(iso));
+const keyToLabel = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }); };
+const todayKey = () => dayKey(new Date().toISOString(), state.tz);
+const ymKey = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+const tzLabel = tz => { try { const off = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName').value; return `${tz.replace(/_/g, ' ')} (${off})`; } catch { return tz; } };
+
+// ---------- icons ----------
+const I = {
+  clock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  video: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
+  cal: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  globe: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>',
+  left: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6"/></svg>',
+  right: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6l6 6-6 6"/></svg>',
+  arrow: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h15M13 6l6 6-6 6"/></svg>',
+  check: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+};
+const locText = e => e.location === 'google_meet' ? 'Google Meet — link sent on booking' : (e.location || 'Details sent on booking');
+
+// ---------- routing ----------
+function go(path) { history.pushState({}, '', path); route(); }
+window.addEventListener('popstate', route);
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-nav]');
+  if (a && !e.metaKey && !e.ctrlKey) { e.preventDefault(); go(a.getAttribute('href')); }
+});
+
+async function init() {
+  state.cfg = await fetch('/api/config').then(r => r.json());
+  const b = state.cfg.brand;
+  $('#tagline').textContent = b.tagline;
+  $('#foot-co').textContent = `© ${new Date().getFullYear()} ${b.company}`;
+  route();
+}
+
+function route() {
+  const slug = location.pathname.replace(/^\/+|\/+$/g, '');
+  const ev = state.cfg.event_types.find(e => e.slug === slug);
+  window.scrollTo({ top: 0 });
+  if (!slug || !ev) return renderHome();
+  if (state.event?.slug !== ev.slug) Object.assign(state, { event: ev, slots: {}, date: null, slot: null, booked: null, error: null });
+  const n = new Date(); state.month = state.month || new Date(n.getFullYear(), n.getMonth(), 1);
+  document.title = `${ev.title} — ${state.cfg.brand.company}`;
+  renderBooking();
+  loadMonth();
+}
+
+// ---------- home: event type list ----------
+function renderHome() {
+  const { brand, event_types, demo } = state.cfg;
+  document.title = `Book Time — ${brand.company}`;
+  app.innerHTML = `
+    ${demo ? demoBanner() : ''}
+    <section class="enter">
+      <p class="label mb-4">${esc(brand.host_title)}</p>
+      <h1 class="display display-xl smear" data-text="Book time with ${esc(brand.host_name)}">Book time with ${esc(brand.host_name)}</h1>
+      <p class="mt-6 max-w-[520px] text-mute text-[15px]">Pick a session below. Times shown are live from my calendars, so everything you see is actually open.</p>
+    </section>
+    <section class="mt-12 sm:mt-16 grid gap-4 sm:gap-6 md:grid-cols-2 enter-2">
+      ${event_types.map(e => `
+        <a href="/${esc(e.slug)}" data-nav class="card surface rounded-[20px] p-6 sm:p-8 block group">
+          <div class="flex items-start justify-between gap-6">
+            <div>
+              <p class="label mb-3">${e.duration} min</p>
+              <h2 class="display text-[44px] sm:text-[52px]">${esc(e.title)}</h2>
+            </div>
+            <span class="arrow mt-2 w-11 h-11 shrink-0 rounded-full bg-bone text-ink grid place-items-center floating">${I.arrow}</span>
+          </div>
+          <p class="mt-4 text-[14px] text-mute">${esc(e.description || '')}</p>
+          <div class="mt-6 pt-5 border-t border-white/[.07] flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-mute">
+            <span class="flex items-center gap-2">${I.clock} ${e.duration} minutes</span>
+            <span class="flex items-center gap-2">${I.video} ${e.location === 'google_meet' ? 'Google Meet' : esc(e.location || 'TBD')}</span>
+          </div>
+        </a>`).join('')}
+    </section>`;
+}
+
+const demoBanner = () => `<div class="mb-8 elevated rounded-xl px-4 py-3 text-[13px] text-mute flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-bone opacity-70"></span>Demo mode: no Google calendars connected yet, so the times below are sample data. Connect them at <a class="lnk underline text-bone" href="/admin">/admin</a>.</div>`;
+
+// ---------- availability ----------
+async function loadMonth() {
+  const y = state.month.getFullYear(), m = state.month.getMonth();
+  const key = ymKey(y, m);
+  if (state.slots['__' + key]) return renderCalendar();
+  state.loading = true; state.error = null; renderCalendar();
+  // Pad by 14h each side so every guest-tz day in the month is covered.
+  const start = new Date(Date.UTC(y, m, 1) - 14 * 3600e3).toISOString();
+  const end = new Date(Date.UTC(y, m + 1, 1) + 14 * 3600e3).toISOString();
+  try {
+    const r = await fetch(`/api/slots?event=${encodeURIComponent(state.event.slug)}&start=${start}&end=${end}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Could not load availability');
+    state.rawSlots = Array.from(new Set([...(state.rawSlots || []), ...data.slots])).sort();
+    regroup();
+    state.slots['__' + key] = true;
+    // Auto-advance to the first month with availability (once) if this month is empty.
+    const inMonth = Object.keys(state.slots).filter(k => k.startsWith(key));
+    if (!inMonth.length && !state.autoAdvanced) {
+      state.autoAdvanced = true; state.loading = false;
+      state.month = new Date(y, m + 1, 1); return loadMonth();
+    }
+  } catch (e) { state.error = e.message; }
+  state.loading = false;
+  renderCalendar();
+}
+
+function regroup() {
+  const flags = Object.fromEntries(Object.entries(state.slots).filter(([k]) => k.startsWith('__')));
+  const g = {};
+  for (const iso of state.rawSlots || []) (g[dayKey(iso, state.tz)] ||= []).push(iso);
+  state.slots = { ...g, ...flags };
+}
+
+// ---------- booking page ----------
+function renderBooking() {
+  const e = state.event, b = state.cfg.brand;
+  app.innerHTML = `
+    ${state.cfg.demo ? demoBanner() : ''}
+    <a href="/" data-nav class="lnk inline-flex items-center gap-2 text-[13px] text-mute mb-6 rounded">${I.left} All sessions</a>
+    <div class="surface rounded-[24px] overflow-hidden grid lg:grid-cols-[320px_1fr] enter">
+      <aside class="p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-white/[.07]">
+        <p class="label">${esc(b.host_name)}</p>
+        <h1 class="display text-[52px] sm:text-[60px] mt-3 smear" data-text="${esc(e.title)}">${esc(e.title)}</h1>
+        <ul class="mt-6 space-y-3 text-[14px] text-mute">
+          <li class="flex items-center gap-3">${I.clock} ${e.duration} min</li>
+          <li class="flex items-start gap-3"><span class="mt-[3px]">${I.video}</span><span>${esc(locText(e))}</span></li>
+          <li id="picked" class="flex items-start gap-3 text-bone ${state.slot ? '' : 'hidden'}"></li>
+        </ul>
+        <p class="mt-6 text-[14px] text-mute">${esc(e.description || '')}</p>
+      </aside>
+      <section id="stage" class="p-6 sm:p-8 min-h-[480px]"></section>
+    </div>`;
+  if (state.booked) return renderConfirmed();
+  if (state.slot) return renderForm();
+  renderCalendar();
+}
+
+function setPicked() {
+  const el = $('#picked'); if (!el) return;
+  if (!state.slot) { el.classList.add('hidden'); return; }
+  const endIso = new Date(new Date(state.slot).getTime() + state.event.duration * 60e3).toISOString();
+  el.classList.remove('hidden');
+  el.innerHTML = `<span class="mt-[3px]">${I.cal}</span><span>${fmtTime(state.slot, state.tz)} – ${fmtTime(endIso, state.tz)}<br>${fmtLong(state.slot, state.tz)}</span>`;
+}
+
+function renderCalendar() {
+  const stage = $('#stage'); if (!stage || state.slot || state.booked) return;
+  const y = state.month.getFullYear(), m = state.month.getMonth();
+  const first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7; // Monday-first
+  const tk = todayKey();
+  const now = new Date(), maxAhead = new Date(now.getTime() + state.cfg.max_days_ahead * 864e5);
+  const canPrev = y > now.getFullYear() || m > now.getMonth();
+  const canNext = new Date(y, m + 1, 1) <= maxAhead;
+
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div></div>';
+  for (let d = 1; d <= days; d++) {
+    const k = `${ymKey(y, m)}-${String(d).padStart(2, '0')}`;
+    const has = (state.slots[k] || []).length > 0;
+    const sel = state.date === k;
+    cells += has
+      ? `<button class="day avail ${sel ? 'sel' : ''} ${k === tk ? 'today' : ''} aspect-square grid place-items-center text-[15px] font-semibold rounded-full" data-day="${k}" aria-label="${keyToLabel(k)}, available" aria-pressed="${sel}"><span class="bg"></span><span class="relative">${d}</span><span class="dot"></span></button>`
+      : `<div class="day ${k === tk ? 'today' : ''} aspect-square grid place-items-center text-[15px] text-smoke">${d}</div>`;
+  }
+
+  const daySlots = state.date ? (state.slots[state.date] || []) : [];
+  stage.innerHTML = `
+    <div class="grid ${state.date ? 'md:grid-cols-[1fr_240px]' : ''} gap-8">
+      <div class="enter">
+        <h2 class="label !text-bone mb-6">Select a date &amp; time</h2>
+        <div class="flex items-center justify-between mb-4">
+          <p class="display text-[30px]">${first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+          <div class="flex gap-2">
+            <button class="btn w-10 h-10 rounded-full elevated grid place-items-center" id="prev" aria-label="Previous month" ${canPrev ? '' : 'disabled'}>${I.left}</button>
+            <button class="btn w-10 h-10 rounded-full elevated grid place-items-center" id="next" aria-label="Next month" ${canNext ? '' : 'disabled'}>${I.right}</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center label !tracking-[.2em] !text-[10px] mb-2">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div>${d}</div>`).join('')}</div>
+        <div class="relative">
+          <div class="grid grid-cols-7 gap-1 ${state.loading ? 'opacity-30' : ''}">${cells}</div>
+          ${state.loading ? `<div class="absolute inset-0 grid place-items-center"><span class="spin w-7 h-7 rounded-full border-2 border-white/20 border-t-bone"></span></div>` : ''}
+        </div>
+        ${state.error ? `<p class="mt-4 text-[13px] text-[#E8A598]" role="alert">${esc(state.error)}</p>` : ''}
+        <div class="mt-8">
+          <label for="tz" class="label flex items-center gap-2 mb-2">${I.globe} Time zone</label>
+          <select id="tz" class="field w-full rounded-xl px-4 py-3 text-[14px] text-bone">${tzOptions()}</select>
+        </div>
+      </div>
+      ${state.date ? `
+      <div class="enter-2">
+        <p class="text-[15px] font-semibold mb-4">${keyToLabel(state.date)}</p>
+        <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1 scroll-slim" id="slots">
+          ${daySlots.length ? daySlots.map(iso => `
+            <div class="slotrow flex gap-2" data-row="${iso}">
+              <button class="slot flex-1 rounded-xl py-3 text-[14px] font-semibold border border-white/[.18] text-bone" data-slot="${iso}">${fmtTime(iso, state.tz)}</button>
+              <button class="confirm btn hidden rounded-xl px-5 text-[14px] font-bold bg-bone text-ink floating" data-go="${iso}">Next</button>
+            </div>`).join('') : '<p class="text-mute text-[14px]">No times left on this day.</p>'}
+        </div>
+      </div>` : ''}
+    </div>`;
+
+  $('#prev').onclick = () => { state.month = new Date(y, m - 1, 1); state.date = null; loadMonth(); };
+  $('#next').onclick = () => { state.month = new Date(y, m + 1, 1); state.date = null; loadMonth(); };
+  $('#tz').onchange = e => { state.tz = e.target.value; state.date = null; regroup(); renderCalendar(); };
+  stage.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { state.date = b.dataset.day; renderCalendar(); $('#slots')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+  stage.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => {
+    stage.querySelectorAll('.slotrow').forEach(r => { r.classList.remove('open'); $('.confirm', r).classList.add('hidden'); });
+    const row = b.parentElement, c = $('.confirm', row);
+    c.classList.remove('hidden'); requestAnimationFrame(() => row.classList.add('open')); c.focus({ preventScroll: true });
+  });
+  stage.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { state.slot = b.dataset.go; setPicked(); renderForm(); });
+}
+
+function tzOptions() {
+  let zones = [];
+  try { zones = Intl.supportedValuesOf('timeZone'); } catch { zones = [state.tz, 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'UTC']; }
+  if (!zones.includes(state.tz)) zones.unshift(state.tz);
+  return zones.map(z => `<option value="${z}" ${z === state.tz ? 'selected' : ''}>${esc(tzLabel(z))}</option>`).join('');
+}
+
+function renderForm(errMsg) {
+  const stage = $('#stage'); setPicked();
+  stage.innerHTML = `
+    <form id="f" class="max-w-[520px] enter" novalidate>
+      <button type="button" id="back" class="lnk inline-flex items-center gap-2 text-[13px] text-mute mb-6 rounded">${I.left} Change time</button>
+      <h2 class="label !text-bone mb-2">Enter details</h2>
+      <p class="display text-[34px] mb-8">${fmtTime(state.slot, state.tz)} · ${fmtLong(state.slot, state.tz)}</p>
+      <div class="space-y-5">
+        <div><label class="label block mb-2" for="name">Name *</label>
+          <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="name" name="name" autocomplete="name" required maxlength="120" placeholder="Your full name"></div>
+        <div><label class="label block mb-2" for="email">Email *</label>
+          <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="email" name="email" type="email" autocomplete="email" required maxlength="200" placeholder="you@company.com"></div>
+        <div><label class="label block mb-2" for="notes">What should we cover?</label>
+          <textarea class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone min-h-[120px]" id="notes" name="notes" maxlength="2000" placeholder="Anything that will help me prepare."></textarea></div>
+      </div>
+      <p id="err" class="mt-4 text-[13px] text-[#E8A598] ${errMsg ? '' : 'hidden'}" role="alert">${esc(errMsg || '')}</p>
+      <button id="submit" class="btn mt-8 w-full sm:w-auto rounded-full bg-bone text-ink font-bold px-8 py-4 text-[14px] tracking-[.18em] uppercase floating inline-flex items-center justify-center gap-3">Schedule event</button>
+      <p class="mt-4 text-[12px] text-smoke">You'll get a calendar invite${state.event.location === 'google_meet' ? ' with a Google Meet link' : ''} at this email.</p>
+    </form>`;
+  $('#back').onclick = () => { state.slot = null; setPicked(); renderCalendar(); };
+  $('#name').focus();
+  $('#f').onsubmit = submit;
+}
+
+async function submit(ev) {
+  ev.preventDefault();
+  const f = ev.target, btn = $('#submit'), err = $('#err');
+  const name = f.name.value.trim(), email = f.email.value.trim(), notes = f.notes.value.trim();
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = 'Please enter your name and a valid email.'; err.classList.remove('hidden'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin w-4 h-4 rounded-full border-2 border-ink/30 border-t-ink"></span> Booking…';
+  try {
+    const r = await fetch('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: state.event.slug, start: state.slot, name, email, notes, timezone: state.tz }) });
+    const data = await r.json();
+    if (r.status === 409) { // slot got taken: refresh availability and send them back
+      state.slot = null; state.slots = {}; state.rawSlots = []; setPicked(); await loadMonth();
+      const s = $('#stage'); s.insertAdjacentHTML('afterbegin', `<p class="mb-4 text-[13px] text-[#E8A598]" role="alert">${esc(data.error)}</p>`); return;
+    }
+    if (!r.ok) throw new Error(data.error || 'Booking failed');
+    state.booked = { ...data, name, email }; renderConfirmed();
+  } catch (e) { renderForm(e.message); $('#name').value = name; $('#email').value = email; $('#notes').value = notes; }
+}
+
+function renderConfirmed() {
+  const s = state.booked, stage = $('#stage');
+  const endIso = new Date(new Date(s.start).getTime() + s.duration * 60e3).toISOString();
+  stage.innerHTML = `
+    <div class="max-w-[520px] mx-auto text-center py-6 enter">
+      <div class="pop mx-auto w-20 h-20 rounded-full bg-bone text-ink grid place-items-center floating">${I.check}</div>
+      <p class="label mt-8">You're scheduled</p>
+      <h2 class="display text-[56px] mt-2">See you soon, ${esc(s.name.split(' ')[0])}</h2>
+      <div class="elevated rounded-2xl p-6 mt-8 text-left space-y-3 text-[14px]">
+        <p class="font-semibold text-[16px]">${esc(s.event)}</p>
+        <p class="flex items-start gap-3 text-mute"><span class="mt-[3px]">${I.cal}</span><span>${fmtTime(s.start, state.tz)} – ${fmtTime(endIso, state.tz)}, ${fmtLong(s.start, state.tz)}</span></p>
+        <p class="flex items-center gap-3 text-mute">${I.globe} ${esc(tzLabel(state.tz))}</p>
+        ${s.meet_link ? `<p class="flex items-center gap-3 text-mute">${I.video} <a class="lnk underline text-bone break-all rounded" href="${esc(s.meet_link)}" target="_blank" rel="noopener">${esc(s.meet_link)}</a></p>` : ''}
+      </div>
+      <p class="mt-6 text-[13px] text-mute">${s.demo ? 'Demo mode: no real invite was sent.' : `A calendar invitation is on its way to <span class="text-bone">${esc(s.email)}</span>.`}</p>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

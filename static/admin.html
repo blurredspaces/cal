@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Blurred Spaces Scheduling</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/static/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { theme: { extend: { colors: { ink: '#0A0A0A', bone: '#EEEBE4', mute: '#8E8B85', smoke: '#55534F' } } } };</script>
+<style>
+  :root { --bone: #EEEBE4; --line: rgba(238,235,228,.09); --spring: cubic-bezier(.34,1.56,.64,1); }
+  body { font-family: Manrope, system-ui, sans-serif; line-height: 1.7; background:
+    radial-gradient(50% 40% at 15% 0%, rgba(238,235,228,.07), transparent 70%),
+    radial-gradient(40% 40% at 100% 100%, rgba(238,235,228,.05), transparent 70%), #0A0A0A; color: var(--bone); min-height: 100vh; }
+  .display { font-family: 'Bebas Neue', Impact, sans-serif; line-height: .95; letter-spacing: -0.03em; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .42em; text-transform: uppercase; color: #8E8B85; }
+  .surface { background: #111; border: 1px solid var(--line); box-shadow: 0 1px 0 rgba(238,235,228,.05) inset, 0 12px 32px rgba(0,0,0,.35), 0 40px 90px -20px rgba(0,0,0,.6); }
+  .elevated { background: #181818; border: 1px solid var(--line); }
+  .field { background: #0E0E0E; border: 1px solid rgba(238,235,228,.12); }
+  .field:focus { border-color: var(--bone); outline: none; }
+  .btn { transition: transform .35s var(--spring), opacity .2s; }
+  .btn:hover { transform: translateY(-2px); } .btn:active { transform: scale(.97); }
+  .btn:focus-visible, .field:focus-visible, input[type=checkbox]:focus-visible, input[type=radio]:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+  input[type=checkbox], input[type=radio] { accent-color: #EEEBE4; width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<main class="max-w-[860px] mx-auto px-4 sm:px-10 py-10 sm:py-16">
+  <header class="flex items-center justify-between mb-12">
+    <a href="/" class="btn rounded"><img src="/static/logo.png" alt="Blurred Spaces" class="h-10"></a>
+    <button id="logout" class="btn hidden text-[13px] text-mute rounded px-2">Log out</button>
+  </header>
+  <div id="app"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+const params = new URLSearchParams(location.search);
+
+async function load() {
+  const r = await fetch('/api/admin/accounts');
+  if (r.status === 401) return renderLogin();
+  const data = await r.json();
+  if (!r.ok) { $('#app').innerHTML = `<p class="text-[#E8A598]">${esc(data.error)}</p>`; return; }
+  $('#logout').classList.remove('hidden');
+  render(data);
+}
+
+function renderLogin(err) {
+  $('#app').innerHTML = `
+    <form id="lf" class="surface rounded-[24px] p-8 max-w-[420px]">
+      <p class="label">Admin</p>
+      <h1 class="display text-[52px] mt-2 mb-6">Sign in</h1>
+      <label class="label block mb-2" for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" class="field w-full rounded-xl px-4 py-3" required>
+      ${err ? `<p class="mt-3 text-[13px] text-[#E8A598]">${esc(err)}</p>` : ''}
+      <button class="btn mt-6 rounded-full bg-bone text-ink font-bold px-8 py-3 text-[13px] tracking-[.18em] uppercase">Enter</button>
+    </form>`;
+  $('#pw').focus();
+  $('#lf').onsubmit = async e => {
+    e.preventDefault();
+    const r = await post('/api/admin/login', { password: $('#pw').value });
+    if (r.ok) load(); else renderLogin((await r.json()).error);
+  };
+}
+
+function render(d) {
+  const notice = params.get('connected') ? `Connected ${esc(params.get('connected'))}.` : params.get('error') ? esc(params.get('error')) : '';
+  $('#app').innerHTML = `
+    <p class="label">Scheduling admin</p>
+    <h1 class="display text-[64px] sm:text-[84px] mt-2">Your calendars</h1>
+    <p class="text-mute text-[15px] mt-3 max-w-[560px]">Guests only see times when <em>every</em> checked calendar below is free. Bookings are created on the account marked “Book to”, which sends the guest the invite.</p>
+    ${notice ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px]">${notice}</div>` : ''}
+    ${!d.google_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-[#E8A598]">GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET aren't set in .env yet. See README.md.</div>` : ''}
+
+    <section class="mt-10 space-y-4">
+      ${d.accounts.length ? d.accounts.map(acctCard).join('') : `<div class="surface rounded-[20px] p-8 text-mute">No Google accounts connected. The booking page is in demo mode.</div>`}
+      <a href="/admin/connect" class="btn inline-flex items-center gap-3 rounded-full bg-bone text-ink font-bold px-7 py-3 text-[13px] tracking-[.18em] uppercase">+ Connect Google account</a>
+      <p class="text-[12px] text-smoke">Redirect URI to register in Google Cloud: <code class="text-mute">${esc(d.redirect_uri)}</code></p>
+    </section>
+
+    <section class="mt-14">
+      <p class="label mb-4">Share links</p>
+      <div class="space-y-3">
+        ${[{ slug: '', title: 'All sessions' }, ...d.event_types].map(e => {
+          const url = d.base_url + '/' + e.slug;
+          return `<div class="elevated rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div><p class="font-semibold text-[14px]">${esc(e.title)}</p><p class="text-mute text-[13px] break-all">${esc(url)}</p></div>
+            <button class="btn copy rounded-full border border-white/20 px-5 py-2 text-[12px] font-semibold shrink-0" data-url="${esc(url)}">Copy link</button>
+          </div>`; }).join('')}
+      </div>
+      <p class="text-[12px] text-smoke mt-3">Hours, durations, buffers and branding live in <code>config.json</code>.</p>
+    </section>`;
+
+  document.querySelectorAll('.copy').forEach(b => b.onclick = async () => {
+    await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy link', 1400);
+  });
+  document.querySelectorAll('[data-save]').forEach(f => f.onchange = async () => {
+    const email = f.dataset.save;
+    const calendars = [...f.querySelectorAll('input[name=cal]:checked')].map(i => i.value);
+    await post('/api/admin/accounts/update', { email, calendars, book_to: f.querySelector('input[name=bookto]')?.checked });
+    if (f.querySelector('input[name=bookto]')?.checked) load();
+  });
+  document.querySelectorAll('[data-remove]').forEach(b => b.onclick = async () => {
+    if (!confirm(`Disconnect ${b.dataset.remove}?`)) return;
+    await post('/api/admin/accounts/remove', { email: b.dataset.remove }); load();
+  });
+}
+
+function acctCard(a) {
+  return `<form class="surface rounded-[20px] p-6 sm:p-8" data-save="${esc(a.email)}">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div><p class="label">Google account</p><p class="text-[18px] font-semibold mt-1 break-all">${esc(a.email)}</p></div>
+      <div class="flex items-center gap-5">
+        <label class="flex items-center gap-2 text-[13px]"><input type="radio" name="bookto" ${a.book_to ? 'checked' : ''}> Book to</label>
+        <button type="button" class="btn text-[13px] text-mute rounded px-1" data-remove="${esc(a.email)}">Disconnect</button>
+      </div>
+    </div>
+    ${a.error ? `<p class="mt-4 text-[13px] text-[#E8A598]">${esc(a.error)}</p>` : ''}
+    <p class="label mt-6 mb-3">Check these calendars for conflicts</p>
+    <div class="grid sm:grid-cols-2 gap-2">
+      ${a.available.map(c => {
+        const on = a.calendars.includes(c.id) || (c.primary && a.calendars.includes('primary'));
+        return `<label class="elevated rounded-xl px-4 py-3 flex items-center gap-3 text-[14px] cursor-pointer">
+          <input type="checkbox" name="cal" value="${esc(c.primary ? 'primary' : c.id)}" ${on ? 'checked' : ''}>
+          <span class="truncate">${esc(c.name)}${c.primary ? ' <span class="text-mute">(main)</span>' : ''}</span></label>`; }).join('')}
+    </div>
+  </form>`;
+}
+
+$('#logout').onclick = async () => { await post('/api/admin/logout'); location.href = '/admin'; };
+load();
+</script>
+</body>
+</html>
