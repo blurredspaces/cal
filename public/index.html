@@ -387,8 +387,8 @@ function renderForm(errMsg) {
           <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="name" name="name" autocomplete="name" required maxlength="120" placeholder="Your full name"></div>
         <div><label class="label block mb-2" for="email">Email *</label>
           <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="email" name="email" type="email" autocomplete="email" required maxlength="200" placeholder="you@company.com"></div>
-        ${isPhone(state.event) ? `<div><label class="label block mb-2" for="phone">Mobile number *</label>
-          <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="30" placeholder="(555) 123-4567"></div>` : ''}
+        <div><label class="label block mb-2" for="phone">Mobile number${isPhone(state.event) ? ' *' : ' <span class="normal-case tracking-normal">(optional)</span>'}</label>
+          <input class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone" id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" ${isPhone(state.event) ? 'required' : ''} maxlength="30" placeholder="(555) 123-4567"></div>
         <div><label class="label block mb-2" for="notes">What should we cover?</label>
           <textarea class="field w-full rounded-xl px-4 py-3 text-[15px] text-bone min-h-[120px]" id="notes" name="notes" maxlength="2000" placeholder="Anything that will help me prepare."></textarea></div>
       </div>
@@ -408,7 +408,8 @@ async function submit(ev) {
   const phone = f.phone ? f.phone.value.trim() : '';
   const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
   if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail('Please enter your name and a valid email.');
-  if (f.phone && (phone.replace(/\D/g, '').length < 7 || !/^[+\d\s().-]+$/.test(phone))) return fail('Please enter a valid mobile number.');
+  const phoneOk = phone.replace(/\D/g, '').length >= 7 && /^[+\d\s().-]+$/.test(phone);
+  if ((isPhone(state.event) || phone) && !phoneOk) return fail('Please enter a valid mobile number.');
   btn.disabled = true; btn.innerHTML = '<span class="spin w-4 h-4 rounded-full border-2 border-ink/30 border-t-ink"></span> Booking…';
   try {
     const r = await fetch('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -435,7 +436,7 @@ function renderConfirmed() {
         <p class="font-semibold text-[16px]">${esc(s.event)}</p>
         <p class="flex items-start gap-3 text-mute"><span class="mt-[3px]">${I.cal}</span><span>${fmtTime(s.start, state.tz)} – ${fmtTime(endIso, state.tz)}, ${fmtLong(s.start, state.tz)}</span></p>
         <p class="flex items-center gap-3 text-mute">${I.globe} ${esc(tzLabel(state.tz))}</p>
-        ${s.phone ? `<p class="flex items-center gap-3 text-mute">${I.phone} Mic will call you at <span class="text-bone">${esc(s.phone)}</span></p>` : ''}
+        ${s.phone && isPhone(state.event) ? `<p class="flex items-center gap-3 text-mute">${I.phone} Mic will call you at <span class="text-bone">${esc(s.phone)}</span></p>` : ''}
         ${s.join_link ? `<p class="flex items-center gap-3 text-mute">${I.video} <a class="lnk underline text-bone break-all rounded" href="${esc(s.join_link)}" target="_blank" rel="noopener">${esc(s.join_link)}</a></p>` : ''}
       </div>
       <p class="mt-6 text-[13px] text-mute">${s.demo ? 'Demo mode: no real invite was sent.' : `A calendar invitation is on its way to <span class="text-bone">${esc(s.email)}</span>.`}</p>

@@ -206,7 +206,9 @@ async function apiBook(req, body, accounts, ip) {
   if (!event) return json(400, { error: "Unknown event type" });
   if (!name || !EMAIL_RE.test(email)) return json(400, { error: "Please enter your name and a valid email." });
   if (!Number.isFinite(start)) return json(400, { error: "Invalid start time" });
-  if (event.location === "phone" && (phone.replace(/\D/g, "").length < 7 || !/^[+\d\s().-]+$/.test(phone))) {
+  // Mobile number: required for phone calls, optional (but validated if given) for everything else.
+  const phoneOk = phone.replace(/\D/g, "").length >= 7 && /^[+\d\s().-]+$/.test(phone);
+  if ((event.location === "phone" || phone) && !phoneOk) {
     return json(400, { error: "Please enter a valid mobile number." });
   }
   if (rateLimited(ip)) return json(429, { error: "Too many booking attempts. Try again later." });
