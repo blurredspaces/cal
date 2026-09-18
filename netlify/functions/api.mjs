@@ -100,6 +100,44 @@ function busyGetter(accounts, useCache = true) {
   };
 }
 
+// ---------------------------------------------------------------- zoom (Server-to-Server OAuth)
+let zoomToken = null; // {token, exp}
+const zoomConfigured = () => !!(env("ZOOM_ACCOUNT_ID") && env("ZOOM_CLIENT_ID") && env("ZOOM_CLIENT_SECRET"));
+// Until Zoom credentials are added, "zoom" events fall back to Google Meet so bookings keep working.
+const locationOf = e => (e.location === "zoom" && !zoomConfigured() ? "google_meet" : e.location);
+
+async function zoomApi(path, method = "GET", body) {
+  if (!zoomToken || zoomToken.exp < Date.now() + 60_000) {
+    const basic = Buffer.from(`${env("ZOOM_CLIENT_ID")}:${env("ZOOM_CLIENT_SECRET")}`).toString("base64");
+    const r = await fetch("https://zoom.us/oauth/token?" + new URLSearchParams({
+      grant_type: "account_credentials", account_id: env("ZOOM_ACCOUNT_ID") }), {
+      method: "POST", headers: { Authorization: "Basic " + basic },
+    });
+    const tok = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`Zoom auth ${r.status}: ${JSON.stringify(tok).slice(0, 300)}`);
+    zoomToken = { token: tok.access_token, exp: Date.now() + (tok.expires_in || 3600) * 1000 };
+  }
+  const r = await fetch("https://api.zoom.us/v2" + path, {
+    method, headers: { Authorization: "Bearer " + zoomToken.token, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`Zoom API ${r.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : {};
+}
+
+// Creates a scheduled meeting on the Zoom account owner (or ZOOM_USER_EMAIL if set).
+async function createZoomMeeting({ topic, start, duration, agenda }) {
+  if (!zoomConfigured()) throw new Error("Zoom isn't configured: set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET.");
+  const user = encodeURIComponent(env("ZOOM_USER_EMAIL") || "me");
+  const m = await zoomApi(`/users/${user}/meetings`, "POST", {
+    topic: topic.slice(0, 200), type: 2, start_time: iso(start), duration, timezone: cfg.timezone,
+    agenda: agenda.slice(0, 2000),
+    settings: { join_before_host: false, waiting_room: true, mute_upon_entry: true, approval_type: 2 },
+  });
+  return { id: m.id, join_url: m.join_url, password: m.password || "" };
+}
+
 // ---------------------------------------------------------------- http helpers
 const json = (status, data, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -143,7 +181,7 @@ function rateLimited(ip, limit = 8, windowMs = 3_600_000) {
 function apiConfig(accounts) {
   return json(200, {
     brand: cfg.brand, timezone: cfg.timezone, max_days_ahead: cfg.max_days_ahead ?? 60,
-    event_types: cfg.event_types, demo: accounts.length === 0,
+    event_types: cfg.event_types.map(e => ({ ...e, location: locationOf(e) })), demo: accounts.length === 0,
   });
 }
 
@@ -183,33 +221,52 @@ async function apiBook(req, body, accounts, ip) {
     notes && `\nNotes from guest:\n${notes}`,
   ].filter(Boolean).join("\n");
   const base = { start: iso(start), event: event.title, duration: event.duration, summary };
-  if (!accounts.length) return json(200, { ...base, demo: true, meet_link: null });
+  if (!accounts.length) return json(200, { ...base, demo: true, join_link: null });
+
+  // Create the video meeting first so its link goes into the calendar invite.
+  let zoom = null;
+  const location = locationOf(event);
+  if (location === "zoom") {
+    zoom = await createZoomMeeting({ topic: summary, start, duration: event.duration, agenda: description });
+  }
+  const joinInfo = zoom
+    ? [`Join Zoom meeting: ${zoom.join_url}`, `Meeting ID: ${String(zoom.id).replace(/(\d{3})(\d{4})(\d+)/, "$1 $2 $3")}`,
+       zoom.password && `Passcode: ${zoom.password}`].filter(Boolean).join("\n") + "\n\n"
+    : "";
 
   const primary = bookingAccount(accounts);
   const ev = {
-    summary, description,
+    summary, description: joinInfo + description,
     start: { dateTime: iso(start), timeZone: cfg.timezone },
     end: { dateTime: iso(end), timeZone: cfg.timezone },
     attendees: [{ email, displayName: name }],
     reminders: { useDefault: true },
   };
-  if (event.location === "google_meet") {
+  if (zoom) ev.location = zoom.join_url;
+  else if (location === "google_meet") {
     ev.conferenceData = { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
-  } else if (event.location) ev.location = event.location;
+  } else if (location) ev.location = location;
 
-  const created = await gcal(primary, "/calendars/primary/events?sendUpdates=all&conferenceDataVersion=1", "POST", ev);
-  const meet = created.hangoutLink || null;
+  let created;
+  try {
+    created = await gcal(primary, "/calendars/primary/events?sendUpdates=all&conferenceDataVersion=1", "POST", ev);
+  } catch (e) {
+    // Don't leave an orphaned Zoom meeting if the calendar event couldn't be created.
+    if (zoom) await zoomApi(`/meetings/${zoom.id}`, "DELETE").catch(() => {});
+    throw e;
+  }
+  const joinLink = zoom?.join_url || created.hangoutLink || null;
 
   // Optional hold on the other connected calendars so they show the time too.
   if (cfg.mirror_to_other_calendars) {
     await Promise.all(accounts.filter(a => a.email !== primary.email).map(a =>
       gcal(a, "/calendars/primary/events", "POST", {
-        summary, start: ev.start, end: ev.end,
-        description: description + (meet ? `\n\nJoin: ${meet}` : "") + `\n\n(Hold: invite lives on ${primary.email})`,
+        summary, start: ev.start, end: ev.end, location: ev.location,
+        description: (joinInfo || (joinLink ? `Join: ${joinLink}\n\n` : "")) + description + `\n\n(Hold: invite lives on ${primary.email})`,
       }).catch(e => console.error("mirror failed", a.email, e.message))));
   }
   busyCache.clear();
-  return json(200, { ...base, demo: false, meet_link: meet });
+  return json(200, { ...base, demo: false, join_link: joinLink });
 }
 
 // ---------------------------------------------------------------- admin routes
@@ -232,6 +289,8 @@ async function apiAccounts(accounts) {
   return json(200, {
     accounts: out, base_url: BASE_URL(), redirect_uri: REDIRECT_URI(),
     google_configured: !!env("GOOGLE_CLIENT_ID"),
+    zoom_configured: zoomConfigured(),
+    zoom_needed: cfg.event_types.some(e => e.location === "zoom"),
     event_types: cfg.event_types.map(e => ({ slug: e.slug, title: e.title })),
   });
 }

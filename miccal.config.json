@@ -26,14 +26,14 @@
       "slug": "intro",
       "title": "Intro Call",
       "duration": 30,
-      "location": "google_meet",
+      "location": "zoom",
       "description": "A quick first conversation to see where your project is headed and how Blurred Spaces can help."
     },
     {
       "slug": "strategy",
       "title": "Strategy Session",
       "duration": 60,
-      "location": "google_meet",
+      "location": "zoom",
       "description": "A focused working session on brand, content, or launch strategy. Come with the problem; leave with a plan."
     }
   ]

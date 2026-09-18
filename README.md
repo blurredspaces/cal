@@ -1,6 +1,6 @@
 # MicCal: Blurred Spaces Scheduling
 
-Your own branded booking page, similar to Calendly, hosted on **Netlify**. Guests pick a time, the app checks **every connected Google calendar** for conflicts, and the booking goes on your calendar with a Google Meet link. The guest also gets an invite.
+Your own branded booking page, similar to Calendly, hosted on **Netlify**. Guests pick a time, the app checks **every connected Google calendar** for conflicts, and the booking goes on your calendar with a **Zoom** link. The guest also gets an invite.
 
 ```
 public/                 booking page (index.html), admin page, logo, background
@@ -53,6 +53,25 @@ Your Google connections are stored in **Netlify Blobs**, Netlify's built-in stor
 
 Until an account is connected, the booking page runs in **demo mode**: sample times, and no real events are created.
 
+## 3. Connect Zoom (video links)
+
+Meeting types with `"location": "zoom"` get a Zoom meeting created on your account at booking time. Until the Zoom keys below are set, they fall back to Google Meet.
+
+1. Go to https://marketplace.zoom.us → **Develop → Build App → Server-to-Server OAuth App**, and name it "Blurred Spaces Scheduling".
+2. **Information:** fill in the company name and developer contact (`tech@blurredspaces.com`).
+3. **Scopes → Add scopes:** add `meeting:write:meeting:admin`. You can also add `meeting:delete:meeting:admin`, which lets the app clean up a Zoom meeting if a booking fails.
+4. **Activation → Activate your app.**
+5. From **App Credentials**, copy these values into Netlify's environment variables, marking the secret as secret, then redeploy:
+
+   | Key | Value |
+   |---|---|
+   | `ZOOM_ACCOUNT_ID` | Account ID |
+   | `ZOOM_CLIENT_ID` | Client ID |
+   | `ZOOM_CLIENT_SECRET` | Client Secret |
+   | `ZOOM_USER_EMAIL` | *(optional)* which Zoom user hosts the meetings. The default is the account owner. |
+
+`/admin` shows "Zoom connected" once it's working. To go back to Meet for any meeting type, set its `location` to `"google_meet"`.
+
 ## Settings (`miccal.config.json`)
 
 Edit the file, commit, and push. Netlify redeploys automatically.
@@ -65,7 +84,7 @@ Edit the file, commit, and push. Netlify redeploys automatically.
 | `buffer_minutes` | Minimum gap kept free around existing meetings |
 | `min_notice_hours` / `max_days_ahead` | How soon, and how far ahead, guests can book |
 | `mirror_to_other_calendars` | Also put a copy of the event on your other connected account(s) |
-| `event_types` | Your meeting types. Each `slug` becomes a link, e.g. `/intro` |
+| `event_types` | Your meeting types. Each `slug` becomes a link, e.g. `/intro`. `location`: `"zoom"`, `"google_meet"`, or plain text such as a phone number or address. |
 
 ## Local development (optional)
 

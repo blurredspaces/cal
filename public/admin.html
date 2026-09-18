@@ -74,6 +74,8 @@ function render(d) {
     <h1 class="display text-[64px] sm:text-[84px] mt-2">Your calendars</h1>
     <p class="text-mute text-[15px] mt-3 max-w-[560px]">Guests only see times when <em>every</em> checked calendar below is free. Bookings are created on the account marked “Book to”, which sends the guest the invite.</p>
     ${notice ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px]">${notice}</div>` : ''}
+    ${d.zoom_needed && !d.zoom_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-[#E8A598]">Zoom isn't set up yet: add ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET in Netlify. Until then, bookings use Google Meet.</div>` : ''}
+    ${d.zoom_needed && d.zoom_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-mute">Zoom connected. Bookings get a Zoom link.</div>` : ''}
     ${!d.google_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-[#E8A598]">GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET aren't set in .env yet. See README.md.</div>` : ''}
 
     <section class="mt-10 space-y-4">

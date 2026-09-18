@@ -166,7 +166,9 @@ const I = {
   arrow: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h15M13 6l6 6-6 6"/></svg>',
   check: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
-const locText = e => e.location === 'google_meet' ? 'Google Meet — link sent on booking' : (e.location || 'Details sent on booking');
+const VIDEO = { zoom: 'Zoom', google_meet: 'Google Meet' };
+const locName = e => VIDEO[e.location] || e.location || 'TBD';
+const locText = e => VIDEO[e.location] ? `${VIDEO[e.location]} — link sent on booking` : (e.location || 'Details sent on booking');
 
 // ---------- routing ----------
 function go(path) { history.pushState({}, '', path); route(); }
@@ -220,7 +222,7 @@ function renderHome() {
           <p class="mt-4 text-[14px] text-mute">${esc(e.description || '')}</p>
           <div class="mt-6 pt-5 border-t border-white/[.07] flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-mute">
             <span class="flex items-center gap-2">${I.clock} ${e.duration} minutes</span>
-            <span class="flex items-center gap-2">${I.video} ${e.location === 'google_meet' ? 'Google Meet' : esc(e.location || 'TBD')}</span>
+            <span class="flex items-center gap-2">${I.video} ${esc(locName(e))}</span>
           </div>
         </a>`).join('')}
     </section>`;
@@ -387,7 +389,7 @@ function renderForm(errMsg) {
       </div>
       <p id="err" class="mt-4 text-[13px] text-[#E8A598] ${errMsg ? '' : 'hidden'}" role="alert">${esc(errMsg || '')}</p>
       <button id="submit" class="btn mt-8 w-full sm:w-auto rounded-full bg-bone text-ink font-bold px-8 py-4 text-[14px] tracking-[.18em] uppercase floating inline-flex items-center justify-center gap-3">Schedule event</button>
-      <p class="mt-4 text-[12px] text-smoke">You'll get a calendar invite${state.event.location === 'google_meet' ? ' with a Google Meet link' : ''} at this email.</p>
+      <p class="mt-4 text-[12px] text-smoke">You'll get a calendar invite${VIDEO[state.event.location] ? ` with a ${VIDEO[state.event.location]} link` : ''} at this email.</p>
     </form>`;
   $('#back').onclick = () => { state.slot = null; setPicked(); renderCalendar(); };
   $('#name').focus();
@@ -425,7 +427,7 @@ function renderConfirmed() {
         <p class="font-semibold text-[16px]">${esc(s.event)}</p>
         <p class="flex items-start gap-3 text-mute"><span class="mt-[3px]">${I.cal}</span><span>${fmtTime(s.start, state.tz)} – ${fmtTime(endIso, state.tz)}, ${fmtLong(s.start, state.tz)}</span></p>
         <p class="flex items-center gap-3 text-mute">${I.globe} ${esc(tzLabel(state.tz))}</p>
-        ${s.meet_link ? `<p class="flex items-center gap-3 text-mute">${I.video} <a class="lnk underline text-bone break-all rounded" href="${esc(s.meet_link)}" target="_blank" rel="noopener">${esc(s.meet_link)}</a></p>` : ''}
+        ${s.join_link ? `<p class="flex items-center gap-3 text-mute">${I.video} <a class="lnk underline text-bone break-all rounded" href="${esc(s.join_link)}" target="_blank" rel="noopener">${esc(s.join_link)}</a></p>` : ''}
       </div>
       <p class="mt-6 text-[13px] text-mute">${s.demo ? 'Demo mode: no real invite was sent.' : `A calendar invitation is on its way to <span class="text-bone">${esc(s.email)}</span>.`}</p>
     </div>`;
