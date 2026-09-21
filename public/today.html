@@ -91,13 +91,18 @@ async function loadSlack() {
   try { d = await (await fetch('/api/slack')).json(); } catch { return; }
   if (!d || d.configured === false) { host.innerHTML = ''; return; }
   if (d.error) {
-    host.innerHTML = `<div class="surface rounded-[22px] px-5 py-4 text-[13px] text-[#E8A598]">Slack: ${esc(d.error)}</div>`;
+    host.innerHTML = `<a href="https://app.slack.com/client" target="_blank" rel="noopener"
+      class="ev surface rounded-[22px] px-5 py-4 flex items-center gap-3 text-[13px] text-[#E8A598] lnk">
+      ${ICON.slack} Slack: ${esc(d.error)}<span class="ml-auto text-smoke text-[12px] shrink-0">Open Slack &rsaquo;</span></a>`;
     return;
   }
   const total = (d.dmTotal || 0) + (d.mentionTotal || 0);
+  const workspace = d.team ? `https://app.slack.com/client/${d.team}` : 'https://app.slack.com/client';
   if (!total) {
-    host.innerHTML = `<div class="surface rounded-[22px] px-5 py-4 flex items-center gap-3 text-[13px] text-mute">
-      <span class="text-smoke">${ICON.slack}</span> Slack is quiet: no unread DMs or mentions.</div>`;
+    host.innerHTML = `<a href="${esc(workspace)}" target="_blank" rel="noopener"
+      class="ev surface rounded-[22px] px-5 py-4 flex items-center gap-3 text-[13px] text-mute lnk">
+      <span class="text-smoke">${ICON.slack}</span> Slack is quiet: no unread DMs or mentions.
+      <span class="ml-auto text-smoke text-[12px] shrink-0">Open Slack &rsaquo;</span></a>`;
     return;
   }
   const parts = [];
@@ -105,7 +110,7 @@ async function loadSlack() {
   if (d.mentionTotal) parts.push(`${d.mentionTotal} mention${d.mentionTotal === 1 ? '' : 's'}`);
   host.innerHTML = `<div class="surface rounded-[22px] p-5 sm:p-6 alert">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <p class="flex items-center gap-3 text-[15px] font-semibold"><span class="pulse">${ICON.slack}</span> Slack: ${esc(parts.join(' · '))}</p>
+      <a href="${esc(workspace)}" target="_blank" rel="noopener" class="lnk rounded flex items-center gap-3 text-[15px] font-semibold"><span class="pulse">${ICON.slack}</span> Slack: ${esc(parts.join(' · '))} <span class="text-mute text-[12px] font-normal">Open Slack &rsaquo;</span></a>
       <button id="slack-seen" class="btn rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold noprint">Mark mentions seen</button>
     </div>
     <ul class="grid sm:grid-cols-2 gap-2">
