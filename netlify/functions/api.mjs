@@ -10,7 +10,7 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
 import cfg from "../../miccal.config.json";
-import { computeSlots, demoBusy, iso } from "../../lib/core.mjs";
+import { computeSlots, demoBusy, iso, wallToUtc } from "../../lib/core.mjs";
 
 // Trim: pasted values often carry stray spaces/newlines, which Google rejects as invalid_client.
 const env = k => (process.env[k] || "").trim().replace(/^["']|["']$/g, "");
@@ -277,6 +277,60 @@ async function apiBook(req, body, accounts, ip) {
   return json(200, { ...base, demo: false, join_link: joinLink });
 }
 
+// ---------------------------------------------------------------- agenda (/today)
+// Events from every selected calendar for today + tomorrow, in the owner's time zone.
+async function apiToday(accounts) {
+  const tz = cfg.timezone;
+  const dayKey = t => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(t));
+  const today = dayKey(Date.now());
+  const tomorrow = dayKey(Date.now() + 86_400_000);
+  // Window: start of today through end of tomorrow, in the owner's zone.
+  const [y, m, d] = today.split("-").map(Number);
+  const startMs = wallToUtc(tz, y, m, d, 0, 0);
+  const endMs = startMs + 2 * 86_400_000 + 3_600_000; // + an hour of slack for DST
+
+  const events = [];
+  await Promise.all(accounts.flatMap(acct =>
+    (acct.calendars?.length ? acct.calendars : ["primary"]).map(async calId => {
+      const q = new URLSearchParams({
+        timeMin: iso(startMs), timeMax: iso(endMs), singleEvents: "true",
+        orderBy: "startTime", maxResults: "50",
+      });
+      const res = await gcal(acct, `/calendars/${encodeURIComponent(calId)}/events?${q}`);
+      for (const e of res.items || []) {
+        if (e.status === "cancelled") continue;
+        const allDay = !!e.start?.date;
+        const startT = allDay ? wallToUtc(tz, ...e.start.date.split("-").map(Number), 0, 0) : Date.parse(e.start.dateTime);
+        const endT = allDay ? wallToUtc(tz, ...e.end.date.split("-").map(Number), 0, 0) : Date.parse(e.end.dateTime);
+        const day = allDay ? e.start.date : dayKey(startT);
+        // All-day events can span days; include them on today/tomorrow if they overlap.
+        const days = allDay
+          ? [today, tomorrow].filter(k => k >= day && wallToUtc(tz, ...k.split("-").map(Number), 0, 0) < endT)
+          : [day];
+        for (const dk of days) {
+          if (dk !== today && dk !== tomorrow) continue;
+          events.push({
+            day: dk, allDay, start: allDay ? null : iso(startT), end: allDay ? null : iso(endT),
+            summary: e.summary || "(no title)", location: e.location || null,
+            description: (e.description || "").slice(0, 400) || null,
+            conference: e.hangoutLink || null,
+            attendees: (e.attendees || []).filter(a => !a.self).map(a => a.displayName || a.email).slice(0, 12),
+            organizer: e.organizer?.email || null,
+            calendar: res.summary || calId, account: acct.email,
+            link: e.htmlLink || null, status: e.status || null,
+          });
+        }
+      }
+    })));
+
+  events.sort((a, b) => (a.day.localeCompare(b.day)) || (a.allDay === b.allDay ? String(a.start).localeCompare(String(b.start)) : a.allDay ? -1 : 1));
+  return json(200, {
+    timezone: tz, generated: iso(Date.now()), brand: cfg.brand,
+    days: [{ key: today, label: "Today" }, { key: tomorrow, label: "Tomorrow" }],
+    events,
+  });
+}
+
 // ---------------------------------------------------------------- admin routes
 async function apiLogin(body) {
   if (!env("ADMIN_PASSWORD")) return json(400, { error: "Set ADMIN_PASSWORD in Netlify environment variables first." });
@@ -361,6 +415,7 @@ export default async (req, context) => {
     if (req.method === "GET") {
       if (path === "/api/config") return apiConfig(accounts);
       if (path === "/api/slots") return await apiSlots(url, accounts);
+      if (path === "/api/today") return admin ? await apiToday(accounts) : json(401, { error: "Login required" });
       if (path === "/api/admin/accounts") return admin ? await apiAccounts(accounts) : json(401, { error: "Login required" });
       if (path === "/admin/connect") return admin ? await oauthStart() : redirect("/admin");
       if (path === "/oauth/callback") return admin ? await oauthCallback(req, url) : redirect("/admin");

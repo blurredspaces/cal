@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today — Blurred Spaces</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { theme: { extend: { colors: { ink: '#0A0A0A', bone: '#EEEBE4', mute: '#8E8B85', smoke: '#55534F' } } } };</script>
+<style>
+  :root { --bone: #EEEBE4; --line: rgba(238,235,228,.09); --spring: cubic-bezier(.34,1.56,.64,1); --ease: cubic-bezier(.22,1,.36,1); }
+  body { font-family: Manrope, system-ui, sans-serif; line-height: 1.7; color: var(--bone); background:
+    radial-gradient(55% 40% at 12% 0%, rgba(238,235,228,.07), transparent 70%),
+    radial-gradient(40% 40% at 100% 100%, rgba(238,235,228,.05), transparent 70%), #0A0A0A; min-height: 100vh; }
+  .display { font-family: 'Bebas Neue', Impact, sans-serif; line-height: .95; letter-spacing: -0.03em; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .42em; text-transform: uppercase; color: #8E8B85; }
+  .surface { background: rgba(17,17,17,.85); border: 1px solid var(--line);
+             box-shadow: 0 1px 0 rgba(238,235,228,.05) inset, 0 12px 32px rgba(0,0,0,.35), 0 40px 90px -20px rgba(0,0,0,.6); }
+  .elevated { background: #181818; border: 1px solid var(--line); }
+  .field { background: #0E0E0E; border: 1px solid rgba(238,235,228,.12); }
+  .field:focus { border-color: var(--bone); outline: none; }
+  .btn { transition: transform .35s var(--spring), opacity .2s var(--ease); }
+  .btn:hover { transform: translateY(-2px); } .btn:active { transform: scale(.97); }
+  .btn:focus-visible, .field:focus-visible, .lnk:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+  .lnk { transition: opacity .2s var(--ease); } .lnk:hover { opacity: .7; } .lnk:active { opacity: .5; }
+  .ev { transition: transform .35s var(--spring); } .ev:hover { transform: translateX(3px); }
+  .ev.past { opacity: .42; }
+  .ev.now { border-color: rgba(238,235,228,.5); }
+  .enter { animation: enter .5s var(--ease) both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media print { body { background: #fff; color: #000; } .noprint { display: none; } .surface, .elevated { background: #fff; border-color: #ddd; box-shadow: none; } }
+</style>
+</head>
+<body>
+<main class="max-w-[1100px] mx-auto px-4 sm:px-10 py-8 sm:py-12">
+  <header class="flex items-center justify-between gap-4 mb-10">
+    <img src="/logo.png" alt="Blurred Spaces" class="h-10">
+    <div class="flex items-center gap-4 noprint">
+      <span id="stamp" class="text-[12px] text-smoke"></span>
+      <button id="refresh" class="btn hidden rounded-full border border-white/20 px-5 py-2 text-[12px] font-semibold">Refresh</button>
+      <button id="logout" class="btn hidden text-[12px] text-mute rounded px-2">Log out</button>
+    </div>
+  </header>
+  <div id="app"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+let tz = 'America/New_York';
+
+const fmtTime = iso => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+const fmtDay = key => { const [y, m, d] = key.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(Date.UTC(y, m - 1, d, 12))); };
+
+async function load() {
+  const r = await fetch('/api/today');
+  if (r.status === 401) return renderLogin();
+  const data = await r.json();
+  if (!r.ok) { $('#app').innerHTML = `<p class="text-[#E8A598]">${esc(data.error || 'Could not load your calendar')}</p>`; return; }
+  $('#refresh').classList.remove('hidden'); $('#logout').classList.remove('hidden');
+  render(data);
+}
+
+function renderLogin(err) {
+  $('#app').innerHTML = `
+    <form id="lf" class="surface rounded-[24px] p-8 max-w-[420px]">
+      <p class="label">Private</p>
+      <h1 class="display text-[52px] mt-2 mb-6">Your agenda</h1>
+      <label class="label block mb-2" for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" class="field w-full rounded-xl px-4 py-3" required>
+      ${err ? `<p class="mt-3 text-[13px] text-[#E8A598]">${esc(err)}</p>` : ''}
+      <button class="btn mt-6 rounded-full bg-bone text-ink font-bold px-8 py-3 text-[13px] tracking-[.18em] uppercase">Enter</button>
+    </form>`;
+  $('#pw').focus();
+  $('#lf').onsubmit = async e => {
+    e.preventDefault();
+    const r = await post('/api/admin/login', { password: $('#pw').value });
+    r.ok ? load() : renderLogin((await r.json()).error);
+  };
+}
+
+function render(d) {
+  tz = d.timezone;
+  const now = Date.now();
+  const zone = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName').value;
+  $('#stamp').textContent = `Updated ${fmtTime(d.generated)} ${zone}`;
+  $('#app').innerHTML = `
+    <div class="enter">
+      <p class="label">${esc(d.brand.host_name)} · ${esc(zone)}</p>
+      <h1 class="display text-[64px] sm:text-[84px] mt-2 mb-10">What's on</h1>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-6 enter">
+      ${d.days.map(day => {
+        const evs = d.events.filter(e => e.day === day.key);
+        return `<section class="surface rounded-[22px] p-6 sm:p-7">
+          <div class="flex items-baseline justify-between gap-3 mb-5">
+            <h2 class="display text-[34px]">${day.label}</h2>
+            <p class="text-[12px] text-mute">${fmtDay(day.key)} · ${evs.length} event${evs.length === 1 ? '' : 's'}</p>
+          </div>
+          ${evs.length ? `<ul class="space-y-3">${evs.map(e => card(e, now)).join('')}</ul>`
+            : `<p class="text-mute text-[14px] py-6">Nothing scheduled.</p>`}
+        </section>`;
+      }).join('')}
+    </div>`;
+}
+
+function card(e, now) {
+  const past = !e.allDay && Date.parse(e.end) < now;
+  const live = !e.allDay && Date.parse(e.start) <= now && Date.parse(e.end) >= now;
+  const when = e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
+  const people = e.attendees.length ? `${e.attendees.length} guest${e.attendees.length === 1 ? '' : 's'}: ${e.attendees.join(', ')}` : '';
+  const isLink = e.location && /^https?:\/\//.test(e.location);
+  const join = e.conference || (isLink ? e.location : null);
+  return `<li class="ev elevated rounded-2xl p-4 ${past ? 'past' : ''} ${live ? 'now' : ''}">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span class="text-[13px] font-bold tabular-nums">${esc(when)}</span>
+      ${live ? '<span class="text-[10px] tracking-[.2em] uppercase bg-bone text-ink rounded-full px-2 py-[2px] font-bold">Now</span>' : ''}
+      <span class="text-[15px] font-semibold">${esc(e.summary)}</span>
+    </div>
+    <div class="mt-2 space-y-1 text-[13px] text-mute">
+      ${people ? `<p>${esc(people)}</p>` : ''}
+      ${e.location && !isLink ? `<p>${esc(e.location)}</p>` : ''}
+      ${join ? `<p><a class="lnk underline text-bone break-all" href="${esc(join)}" target="_blank" rel="noopener">Join link</a></p>` : ''}
+      <p class="text-smoke text-[12px]">${esc(e.calendar)} · ${esc(e.account)}${e.link ? ` · <a class="lnk underline" href="${esc(e.link)}" target="_blank" rel="noopener">Open in Google</a>` : ''}</p>
+    </div>
+  </li>`;
+}
+
+$('#refresh').onclick = load;
+$('#logout').onclick = async () => { await post('/api/admin/logout'); location.reload(); };
+setInterval(load, 5 * 60 * 1000); // keep it current while left open
+load();
+</script>
+</body>
+</html>
