@@ -368,6 +368,33 @@ async function slackSummary() {
 }
 
 // ---------------------------------------------------------------- agenda (/today)
+// Meeting links often live in the notes (8tivLabs invites do this), not the location field.
+const VIDEO_RE = /https?:\/\/(?:[\w-]+\.)*(?:zoom\.us\/(?:j|my|w|s)\/[^\s"'<>)\]]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s"'<>)\]]+|meet\.google\.com\/[a-z-]{10,}|webex\.com\/[^\s"'<>)\]]+|whereby\.com\/[^\s"'<>)\]]+|meet\.jit\.si\/[^\s"'<>)\]]+)/i;
+const ANY_URL_RE = /https?:\/\/[^\s"'<>)\]]+/;
+
+function findJoinLink(ev) {
+  if (ev.hangoutLink) return ev.hangoutLink;
+  const clean = t => t && t.replace(/&amp;/g, "&").replace(/[.,;)]+$/, "");
+  for (const field of [ev.location, ev.description, ev.summary]) {
+    if (!field) continue;
+    const hit = field.match(VIDEO_RE);
+    if (hit) return clean(hit[0]);
+  }
+  // Conference data Google attached from another provider (Zoom add-on, etc.)
+  for (const ep of ev.conferenceData?.entryPoints || []) {
+    if (ep.entryPointType === "video" && ep.uri) return clean(ep.uri);
+  }
+  const loose = ev.location?.match(ANY_URL_RE);
+  return loose ? clean(loose[0]) : null;
+}
+
+// Dial-in number from the notes, when there's no video link (phone bridges).
+function findPhone(ev) {
+  const fromLoc = ev.location?.trim();
+  if (fromLoc && /^[+(]?[\d][\d\s().+-]{6,}$/.test(fromLoc)) return fromLoc;
+  const m = (ev.description || "").match(/(?:dial|call|phone)[^\d+]{0,20}(\+?\d[\d\s().-]{7,})/i);
+  return m ? m[1].trim() : null;
+}
 // Events from every selected calendar for today + tomorrow, in the owner's time zone.
 async function apiToday(accounts) {
   const tz = cfg.timezone;
@@ -403,7 +430,8 @@ async function apiToday(accounts) {
             day: dk, allDay, start: allDay ? null : iso(startT), end: allDay ? null : iso(endT),
             summary: e.summary || "(no title)", location: e.location || null,
             description: (e.description || "").slice(0, 400) || null,
-            conference: e.hangoutLink || null,
+            conference: findJoinLink(e),
+            phone: findPhone(e),
             attendees: (e.attendees || []).filter(a => !a.self).map(a => a.displayName || a.email).slice(0, 12),
             organizer: e.organizer?.email || null,
             calendar: res.summary || calId, account: acct.email,

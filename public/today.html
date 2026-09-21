@@ -208,8 +208,8 @@ function card(e, now) {
 
   // Prefer a link you can act on: video room first, then a phone number.
   const locIsUrl = e.location && /^https?:\/\//.test(e.location);
-  const video = e.conference || (locIsUrl && /zoom\.us|meet\.google|teams\.microsoft|whereby|webex/.test(e.location) ? e.location : null) || (locIsUrl ? e.location : null);
-  const phoneRaw = !locIsUrl && e.location && /^[+(]?[\d][\d\s().+-]{6,}$/.test(e.location.trim()) ? e.location.trim() : null;
+  const video = e.conference || (locIsUrl ? e.location : null);   // server also reads the notes
+  const phoneRaw = e.phone || null;
   const videoName = video ? (/zoom\.us/.test(video) ? 'Join Zoom' : /meet\.google/.test(video) ? 'Join Meet' : /teams\./.test(video) ? 'Join Teams' : 'Join call') : null;
   const action = video ? { href: video, text: videoName, ext: true }
     : phoneRaw ? { href: 'tel:' + phoneRaw.replace(/[^+\d]/g, ''), text: `Call ${phoneRaw}`, ext: false } : null;
