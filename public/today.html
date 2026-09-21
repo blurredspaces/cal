@@ -213,17 +213,21 @@ function card(e, now) {
     : phoneRaw ? { href: 'tel:' + phoneRaw.replace(/[^+\d]/g, ''), text: `Call ${phoneRaw}`, ext: false } : null;
 
   return `<li class="ev elevated rounded-2xl p-4 ${past ? 'past' : ''} ${live ? 'now' : ''} ${soon ? 'soon' : ''}">
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="text-[13px] font-bold tabular-nums">${esc(when)}</span>
-      ${live ? '<span class="badge">Now</span>' : soon ? `<span class="badge">Starts ${esc(countdown)}</span>` : ''}
-      <span class="text-[15px] font-semibold">${esc(e.summary)}</span>
-    </div>
-    ${action ? `<a class="btn act inline-flex items-center gap-2 mt-3 rounded-full bg-bone text-ink font-bold px-4 py-2 text-[12px] tracking-[.12em] uppercase floating"
-         href="${esc(action.href)}"${action.ext ? ' target="_blank" rel="noopener"' : ''}>${action.ext ? ICON.video : ICON.phone} ${esc(action.text)}</a>` : ''}
-    <div class="mt-2 space-y-1 text-[13px] text-mute">
-      ${people ? `<p>${esc(people)}</p>` : ''}
-      ${e.location && !locIsUrl && !phoneRaw ? `<p>${esc(e.location)}</p>` : ''}
-      <p class="text-smoke text-[12px]">${esc(e.calendar)} · ${esc(e.account)}${e.link ? ` · <a class="lnk underline" href="${esc(e.link)}" target="_blank" rel="noopener">Open in Google</a>` : ''}</p>
+    <div class="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+      <div class="min-w-0 sm:flex-1">
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="text-[13px] font-bold tabular-nums">${esc(when)}</span>
+          ${live ? '<span class="badge">Now</span>' : soon ? `<span class="badge">Starts ${esc(countdown)}</span>` : ''}
+          <span class="text-[15px] font-semibold">${esc(e.summary)}</span>
+        </div>
+        <div class="mt-2 space-y-1 text-[13px] text-mute">
+          ${people ? `<p>${esc(people)}</p>` : ''}
+          ${e.location && !locIsUrl && !phoneRaw ? `<p>${esc(e.location)}</p>` : ''}
+          <p class="text-smoke text-[12px]">${esc(e.calendar)} · ${esc(e.account)}${e.link ? ` · <a class="lnk underline" href="${esc(e.link)}" target="_blank" rel="noopener">Open in Google</a>` : ''}</p>
+        </div>
+      </div>
+      ${action ? `<a class="btn act self-end sm:ml-auto shrink-0 inline-flex items-center gap-2 rounded-full bg-bone text-ink font-bold px-4 py-2 text-[12px] tracking-[.12em] uppercase floating"
+           href="${esc(action.href)}"${action.ext ? ' target="_blank" rel="noopener"' : ''}>${action.ext ? ICON.video : ICON.phone} ${esc(action.text)}</a>` : ''}
     </div>
   </li>`;
 }
