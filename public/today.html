@@ -10,7 +10,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>tailwind.config = { theme: { extend: { colors: { ink: '#0A0A0A', bone: '#EEEBE4', mute: '#8E8B85', smoke: '#55534F' } } } };</script>
 <style>
-  :root { --bone: #EEEBE4; --line: rgba(238,235,228,.09); --spring: cubic-bezier(.34,1.56,.64,1); --ease: cubic-bezier(.22,1,.36,1); }
+  :root { --red: #CC3300; /* rapfabulous RED, the only documented red in the brand files */
+          --bone: #EEEBE4; --line: rgba(238,235,228,.09); --spring: cubic-bezier(.34,1.56,.64,1); --ease: cubic-bezier(.22,1,.36,1); }
   body { font-family: Manrope, system-ui, sans-serif; line-height: 1.7; color: var(--bone); background:
     radial-gradient(55% 40% at 12% 0%, rgba(238,235,228,.07), transparent 70%),
     radial-gradient(40% 40% at 100% 100%, rgba(238,235,228,.05), transparent 70%), #0A0A0A; min-height: 100vh; }
@@ -28,9 +29,10 @@
   .ev { transition: transform .35s var(--spring); } .ev:hover { transform: translateX(3px); }
   .ev.past { opacity: .42; }
   .ev.now { border-color: rgba(238,235,228,.5); }
-  .ev.soon { border-color: rgba(238,235,228,.75); box-shadow: 0 0 0 1px rgba(238,235,228,.35), 0 10px 30px -10px rgba(238,235,228,.25); }
+  .ev.soon { border-color: var(--red); box-shadow: 0 0 0 1px rgba(204,51,0,.55), 0 10px 30px -10px rgba(204,51,0,.5); }
   .badge { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700;
            background: var(--bone); color: #0A0A0A; border-radius: 999px; padding: 2px 8px; }
+  .badge.soon { background: var(--red); color: #fff; }
   .floating { box-shadow: 0 10px 30px -8px rgba(238,235,228,.18), 0 2px 6px rgba(0,0,0,.4); }
   .act:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
   .alert { border-color: rgba(238,235,228,.28); }
@@ -217,7 +219,7 @@ function card(e, now) {
       <div class="min-w-0 sm:flex-1">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span class="text-[13px] font-bold tabular-nums">${esc(when)}</span>
-          ${live ? '<span class="badge">Now</span>' : soon ? `<span class="badge">Starts ${esc(countdown)}</span>` : ''}
+          ${live ? '<span class="badge">Now</span>' : soon ? `<span class="badge soon">Starts ${esc(countdown)}</span>` : ''}
           <span class="text-[15px] font-semibold">${esc(e.summary)}</span>
         </div>
         <div class="mt-2 space-y-1 text-[13px] text-mute">
