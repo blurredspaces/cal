@@ -277,6 +277,96 @@ async function apiBook(req, body, accounts, ip) {
   return json(200, { ...base, demo: false, join_link: joinLink });
 }
 
+// ---------------------------------------------------------------- slack (unread DMs + mentions)
+// Slack only exposes true unread counts for DMs. For channels we count @-mentions
+// newer than the "seen" marker this app keeps in Netlify Blobs.
+const slackConfigured = () => !!env("SLACK_USER_TOKEN");
+const SLACK_DM_LIMIT = 50;      // how many DM conversations to inspect
+const SLACK_CHANNEL_LIMIT = 60; // how many channels to scan for mentions
+let slackCache = null;          // {at, data}
+
+async function slackApi(method, params = {}) {
+  const url = "https://slack.com/api/" + method + "?" + new URLSearchParams(params);
+  const r = await fetch(url, { headers: { Authorization: "Bearer " + env("SLACK_USER_TOKEN") } });
+  const data = await r.json().catch(() => ({}));
+  if (!data.ok) throw new Error(`Slack ${method}: ${data.error || r.status}`);
+  return data;
+}
+
+// Run async work with limited concurrency so we stay under Slack's rate limits.
+async function pooled(items, size, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
+  }
+  return out;
+}
+
+async function slackSummary() {
+  if (slackCache && Date.now() - slackCache.at < 60_000) return slackCache.data;
+  const me = await slackApi("auth.test");
+  const team = env("SLACK_TEAM_ID") || me.team_id;
+  const seen = Number((await store().get("slack_seen")) || 0) || (Date.now() - 3 * 86_400_000) / 1000;
+  const link = (id, ts) => `https://app.slack.com/client/${team}/${id}` + (ts ? `/thread/${id}-${ts}` : "");
+
+  // --- names, so DMs read as people rather than IDs
+  const nameCache = new Map();
+  const userName = async id => {
+    if (!id) return "Someone";
+    if (nameCache.has(id)) return nameCache.get(id);
+    const u = await slackApi("users.info", { user: id }).catch(() => null);
+    const n = u?.user?.profile?.display_name || u?.user?.real_name || u?.user?.name || id;
+    nameCache.set(id, n);
+    return n;
+  };
+
+  // --- unread DMs and group DMs (exact, from Slack)
+  const convos = await slackApi("conversations.list", {
+    types: "im,mpim", exclude_archived: "true", limit: "200",
+  });
+  const dmCandidates = (convos.channels || []).filter(c => c.is_open !== false && !c.is_user_deleted).slice(0, SLACK_DM_LIMIT);
+  const dmInfos = await pooled(dmCandidates, 8, c =>
+    slackApi("conversations.info", { channel: c.id }).then(r => r.channel).catch(() => null));
+  const dms = [];
+  for (const c of dmInfos) {
+    const count = c?.unread_count_display || 0;
+    if (!c || !count) continue;
+    dms.push({
+      id: c.id, count, isGroup: !!c.is_mpim,
+      who: c.is_mpim ? (c.name || "Group DM").replace(/^mpdm-|-1$/g, "").replace(/--/g, ", ") : await userName(c.user),
+      url: link(c.id),
+    });
+  }
+
+  // --- @mentions in channels since the seen marker (approximate: Slack hides channel read state)
+  const chans = await slackApi("users.conversations", {
+    types: "public_channel,private_channel", exclude_archived: "true", limit: "200",
+  });
+  const channels = (chans.channels || []).filter(c => c.is_member).slice(0, SLACK_CHANNEL_LIMIT);
+  const needle = `<@${me.user_id}>`;
+  const mentionLists = await pooled(channels, 8, async c => {
+    const h = await slackApi("conversations.history", {
+      channel: c.id, oldest: String(seen), limit: "50",
+    }).catch(() => null);
+    return (h?.messages || [])
+      .filter(m => m.user !== me.user_id && typeof m.text === "string" && m.text.includes(needle))
+      .map(m => ({ channel: c.name, channelId: c.id, ts: m.ts, user: m.user,
+                   text: m.text.replace(needle, "@you").slice(0, 200), url: link(c.id, m.ts) }));
+  });
+  const mentions = mentionLists.flat().sort((a, b) => Number(b.ts) - Number(a.ts)).slice(0, 25);
+  for (const m of mentions) m.who = await userName(m.user);
+
+  const data = {
+    configured: true, team, seen,
+    dms: dms.sort((a, b) => b.count - a.count),
+    dmTotal: dms.reduce((n, d) => n + d.count, 0),
+    mentions, mentionTotal: mentions.length,
+    channelsScanned: channels.length, dmsScanned: dmCandidates.length,
+  };
+  slackCache = { at: Date.now(), data };
+  return data;
+}
+
 // ---------------------------------------------------------------- agenda (/today)
 // Events from every selected calendar for today + tomorrow, in the owner's time zone.
 async function apiToday(accounts) {
@@ -352,6 +442,7 @@ async function apiAccounts(accounts) {
     accounts: out, base_url: BASE_URL(), redirect_uri: REDIRECT_URI(),
     google_configured: !!env("GOOGLE_CLIENT_ID"),
     zoom_configured: zoomConfigured(),
+    slack_configured: slackConfigured(),
     zoom_needed: cfg.event_types.some(e => e.location === "zoom"),
     event_types: cfg.event_types.map(e => ({ slug: e.slug, title: e.title })),
   });
@@ -415,6 +506,12 @@ export default async (req, context) => {
     if (req.method === "GET") {
       if (path === "/api/config") return apiConfig(accounts);
       if (path === "/api/slots") return await apiSlots(url, accounts);
+      if (path === "/api/slack") {
+        if (!admin) return json(401, { error: "Login required" });
+        if (!slackConfigured()) return json(200, { configured: false });
+        try { return json(200, await slackSummary()); }
+        catch (e) { return json(200, { configured: true, error: e.message, dms: [], mentions: [], dmTotal: 0, mentionTotal: 0 }); }
+      }
       if (path === "/api/today") return admin ? await apiToday(accounts) : json(401, { error: "Login required" });
       if (path === "/api/admin/accounts") return admin ? await apiAccounts(accounts) : json(401, { error: "Login required" });
       if (path === "/admin/connect") return admin ? await oauthStart() : redirect("/admin");
@@ -425,6 +522,11 @@ export default async (req, context) => {
       if (path === "/api/admin/login") return await apiLogin(body);
       if (path === "/api/admin/logout") return json(200, { ok: true }, { "Set-Cookie": setCookie("mc_admin", "", 0) });
       if (!admin) return json(401, { error: "Login required" });
+      if (path === "/api/slack/seen") {
+        await store().set("slack_seen", String(Date.now() / 1000));
+        slackCache = null;
+        return json(200, { ok: true });
+      }
       if (path === "/api/admin/accounts/update") return await apiAccountUpdate(body, accounts);
       if (path === "/api/admin/accounts/remove") {
         await writeAccounts(accounts.filter(a => a.email !== body.email));

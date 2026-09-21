@@ -76,6 +76,7 @@ function render(d) {
     ${notice ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px]">${notice}</div>` : ''}
     ${d.zoom_needed && !d.zoom_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-[#E8A598]">Zoom isn't set up yet: add ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET in Netlify. Until then, bookings use Google Meet.</div>` : ''}
     ${d.zoom_needed && d.zoom_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-mute">Zoom connected. Bookings get a Zoom link.</div>` : ''}
+    ${d.slack_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-mute">Slack connected. Unread DMs and mentions show on <a class="lnk underline text-bone" href="/today">/today</a>.</div>` : ''}
     ${!d.google_configured ? `<div class="elevated rounded-xl px-4 py-3 mt-6 text-[14px] text-[#E8A598]">GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET aren't set in .env yet. See README.md.</div>` : ''}
 
     <section class="mt-10 space-y-4">

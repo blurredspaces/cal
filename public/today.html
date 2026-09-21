@@ -28,6 +28,10 @@
   .ev { transition: transform .35s var(--spring); } .ev:hover { transform: translateX(3px); }
   .ev.past { opacity: .42; }
   .ev.now { border-color: rgba(238,235,228,.5); }
+  .alert { border-color: rgba(238,235,228,.28); }
+  .pulse { animation: pulse 2.4s var(--ease) infinite; display: inline-block; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.92); } }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .chev { transition: transform .4s var(--spring); }
   [aria-expanded="true"] .chev { transform: rotate(90deg); }
   .dayhead { width: 100%; text-align: left; transition: transform .35s var(--spring); }
@@ -54,7 +58,8 @@
 </main>
 <script>
 const $ = s => document.querySelector(s);
-const ICON = { chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>' };
+const ICON = { slack: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15a2 2 0 1 1-2-2h2v2zm1 0a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0v-5zm2-8a2 2 0 1 1 2-2v2H9zm0 1a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4h5zm9 7a2 2 0 1 1 2 2h-2v-2zm-1 0a2 2 0 0 1-4 0V9a2 2 0 0 1 4 0v6zm-2 8a2 2 0 1 1-2 2v-2h2zm0-1a2 2 0 0 1 0-4h5a2 2 0 0 1 0 4h-5z"/></svg>',
+  chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
 let tz = 'America/New_York';
@@ -66,13 +71,51 @@ const fmtTime = iso => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'n
 const fmtDay = key => { const [y, m, d] = key.split('-').map(Number);
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(Date.UTC(y, m - 1, d, 12))); };
 
+async function loadSlack() {
+  const host = $('#slack');
+  if (!host) return;
+  let d;
+  try { d = await (await fetch('/api/slack')).json(); } catch { return; }
+  if (!d || d.configured === false) { host.innerHTML = ''; return; }
+  if (d.error) {
+    host.innerHTML = `<div class="surface rounded-[22px] px-5 py-4 text-[13px] text-[#E8A598]">Slack: ${esc(d.error)}</div>`;
+    return;
+  }
+  const total = (d.dmTotal || 0) + (d.mentionTotal || 0);
+  if (!total) {
+    host.innerHTML = `<div class="surface rounded-[22px] px-5 py-4 flex items-center gap-3 text-[13px] text-mute">
+      <span class="text-smoke">${ICON.slack}</span> Slack is quiet: no unread DMs or mentions.</div>`;
+    return;
+  }
+  const parts = [];
+  if (d.dmTotal) parts.push(`${d.dmTotal} unread DM${d.dmTotal === 1 ? '' : 's'}`);
+  if (d.mentionTotal) parts.push(`${d.mentionTotal} mention${d.mentionTotal === 1 ? '' : 's'}`);
+  host.innerHTML = `<div class="surface rounded-[22px] p-5 sm:p-6 alert">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <p class="flex items-center gap-3 text-[15px] font-semibold"><span class="pulse">${ICON.slack}</span> Slack: ${esc(parts.join(' · '))}</p>
+      <button id="slack-seen" class="btn rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold noprint">Mark mentions seen</button>
+    </div>
+    <ul class="grid sm:grid-cols-2 gap-2">
+      ${d.dms.map(dm => `<li><a class="ev elevated rounded-xl p-3 flex items-baseline gap-3 lnk" href="${esc(dm.url)}" target="_blank" rel="noopener">
+        <span class="text-[11px] font-bold bg-bone text-ink rounded-full px-2 py-[1px] shrink-0">${dm.count}</span>
+        <span class="text-[14px]"><span class="font-semibold">${esc(dm.who)}</span> <span class="text-smoke text-[12px]">${dm.isGroup ? 'group DM' : 'DM'}</span></span></a></li>`).join('')}
+      ${d.mentions.map(m => `<li><a class="ev elevated rounded-xl p-3 block lnk" href="${esc(m.url)}" target="_blank" rel="noopener">
+        <p class="text-[13px]"><span class="font-semibold">${esc(m.who)}</span> <span class="text-mute">in #${esc(m.channel)}</span></p>
+        <p class="text-[13px] text-mute mt-1 line-clamp-2">${esc(m.text)}</p></a></li>`).join('')}
+    </ul>
+    ${d.mentionTotal ? `<p class="text-[11px] text-smoke mt-3">Mentions are counted since you last marked them seen. Slack doesn't share channel read state with apps.</p>` : ''}
+  </div>`;
+  const b = $('#slack-seen');
+  if (b) b.onclick = async () => { b.disabled = true; await post('/api/slack/seen'); loadSlack(); };
+}
+
 async function load() {
   const r = await fetch('/api/today');
   if (r.status === 401) return renderLogin();
   const data = await r.json();
   if (!r.ok) { $('#app').innerHTML = `<p class="text-[#E8A598]">${esc(data.error || 'Could not load your calendar')}</p>`; return; }
   $('#refresh').classList.remove('hidden'); $('#logout').classList.remove('hidden');
-  last = data; render(data);
+  last = data; render(data); loadSlack();
 }
 
 function renderLogin(err) {
@@ -103,6 +146,7 @@ function render(d) {
       <p class="label">${esc(d.brand.host_name)} · ${esc(zone)}</p>
       <h1 class="display text-[64px] sm:text-[84px] mt-2 mb-10">What's on</h1>
     </div>
+    <div id="slack" class="mb-6"></div>
     <div class="space-y-6 enter">
       ${d.days.map((day, i) => {
         const evs = d.events.filter(e => e.day === day.key);

@@ -72,6 +72,25 @@ Meeting types with `"location": "zoom"` get a Zoom meeting created on your accou
 
 `/admin` shows "Zoom connected" once it's working. To go back to Meet for any meeting type, set its `location` to `"google_meet"`.
 
+## 4. Private agenda + Slack alerts (`/today`)
+
+`/today` (same password as `/admin`) shows today's and tomorrow's events from every selected calendar, with Tomorrow collapsed until you tap it.
+
+To add Slack unread alerts there, create a Slack app with a **user token**:
+
+1. https://api.slack.com/apps → **Create New App → From scratch**, name it "MicCal", pick your workspace.
+2. **OAuth & Permissions → User Token Scopes**, add:
+   `channels:read`, `groups:read`, `im:read`, `mpim:read`,
+   `channels:history`, `groups:history`, `im:history`, `mpim:history`, `users:read`
+3. **Install to Workspace**, then copy the **User OAuth Token** (starts with `xoxp-`).
+4. In Netlify environment variables add `SLACK_USER_TOKEN` (mark it secret). Optionally `SLACK_TEAM_ID` for deep links. Redeploy.
+
+What it shows:
+- **Unread DMs and group DMs:** exact counts, straight from Slack.
+- **@mentions in channels:** counted since you last pressed "Mark mentions seen", because Slack no longer exposes channel read state to apps (`users.counts` was removed, and `conversations.info` returns unread fields for DMs only).
+
+Scanning is capped (50 DMs, 60 channels) and cached for 60 seconds to stay inside Slack's rate limits.
+
 ## Settings (`miccal.config.json`)
 
 Edit the file, commit, and push. Netlify redeploys automatically.
