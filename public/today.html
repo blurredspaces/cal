@@ -28,6 +28,11 @@
   .ev { transition: transform .35s var(--spring); } .ev:hover { transform: translateX(3px); }
   .ev.past { opacity: .42; }
   .ev.now { border-color: rgba(238,235,228,.5); }
+  .chev { transition: transform .4s var(--spring); }
+  [aria-expanded="true"] .chev { transform: rotate(90deg); }
+  .dayhead { width: 100%; text-align: left; transition: transform .35s var(--spring); }
+  .dayhead:hover { transform: translateY(-1px); }
+  .dayhead:active { transform: scale(.995); }
   .enter { animation: enter .5s var(--ease) both; }
   @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
@@ -49,9 +54,13 @@
 </main>
 <script>
 const $ = s => document.querySelector(s);
+const ICON = { chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
 let tz = 'America/New_York';
+let last = null;                 // cached payload, so toggling doesn't refetch
+const KEY = 'miccal.tomorrowOpen';
+let openTomorrow = (() => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } })();
 
 const fmtTime = iso => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 const fmtDay = key => { const [y, m, d] = key.split('-').map(Number);
@@ -63,7 +72,7 @@ async function load() {
   const data = await r.json();
   if (!r.ok) { $('#app').innerHTML = `<p class="text-[#E8A598]">${esc(data.error || 'Could not load your calendar')}</p>`; return; }
   $('#refresh').classList.remove('hidden'); $('#logout').classList.remove('hidden');
-  render(data);
+  last = data; render(data);
 }
 
 function renderLogin(err) {
@@ -94,19 +103,38 @@ function render(d) {
       <p class="label">${esc(d.brand.host_name)} · ${esc(zone)}</p>
       <h1 class="display text-[64px] sm:text-[84px] mt-2 mb-10">What's on</h1>
     </div>
-    <div class="grid lg:grid-cols-2 gap-6 enter">
-      ${d.days.map(day => {
+    <div class="space-y-6 enter">
+      ${d.days.map((day, i) => {
         const evs = d.events.filter(e => e.day === day.key);
+        const collapsible = i > 0;                       // Today stays open; Tomorrow folds
+        const open = !collapsible || openTomorrow;
+        const next = evs.find(e => !e.allDay);
+        const peek = evs.length ? (next ? `First: ${fmtTime(next.start)} · ${next.summary}` : 'All-day only') : 'Nothing scheduled';
         return `<section class="surface rounded-[22px] p-6 sm:p-7">
-          <div class="flex items-baseline justify-between gap-3 mb-5">
+          ${collapsible ? `
+          <button class="dayhead flex items-baseline justify-between gap-3 rounded" data-toggle aria-expanded="${open}" aria-controls="day-${i}">
+            <span class="flex items-baseline gap-3">
+              <span class="chev inline-block text-mute translate-y-[-2px]">${ICON.chev}</span>
+              <span class="display text-[34px]">${day.label}</span>
+            </span>
+            <span class="text-[12px] text-mute text-right">${fmtDay(day.key)} · ${evs.length} event${evs.length === 1 ? '' : 's'}${open ? '' : `<br><span class="text-smoke">${esc(peek)}</span>`}</span>
+          </button>` : `
+          <div class="flex items-baseline justify-between gap-3">
             <h2 class="display text-[34px]">${day.label}</h2>
             <p class="text-[12px] text-mute">${fmtDay(day.key)} · ${evs.length} event${evs.length === 1 ? '' : 's'}</p>
+          </div>`}
+          <div id="day-${i}" class="${open ? 'mt-5 enter' : 'hidden'}">
+            ${evs.length ? `<ul class="space-y-3">${evs.map(e => card(e, now)).join('')}</ul>`
+              : `<p class="text-mute text-[14px] py-2">Nothing scheduled.</p>`}
           </div>
-          ${evs.length ? `<ul class="space-y-3">${evs.map(e => card(e, now)).join('')}</ul>`
-            : `<p class="text-mute text-[14px] py-6">Nothing scheduled.</p>`}
         </section>`;
       }).join('')}
     </div>`;
+  document.querySelectorAll('[data-toggle]').forEach(b => b.onclick = () => {
+    openTomorrow = !openTomorrow;
+    try { localStorage.setItem(KEY, openTomorrow ? '1' : '0'); } catch {}
+    render(last);
+  });
 }
 
 function card(e, now) {
