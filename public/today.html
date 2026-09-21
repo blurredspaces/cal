@@ -28,6 +28,11 @@
   .ev { transition: transform .35s var(--spring); } .ev:hover { transform: translateX(3px); }
   .ev.past { opacity: .42; }
   .ev.now { border-color: rgba(238,235,228,.5); }
+  .ev.soon { border-color: rgba(238,235,228,.75); box-shadow: 0 0 0 1px rgba(238,235,228,.35), 0 10px 30px -10px rgba(238,235,228,.25); }
+  .badge { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700;
+           background: var(--bone); color: #0A0A0A; border-radius: 999px; padding: 2px 8px; }
+  .floating { box-shadow: 0 10px 30px -8px rgba(238,235,228,.18), 0 2px 6px rgba(0,0,0,.4); }
+  .act:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
   .alert { border-color: rgba(238,235,228,.28); }
   .pulse { animation: pulse 2.4s var(--ease) infinite; display: inline-block; }
   @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.92); } }
@@ -58,12 +63,17 @@
 </main>
 <script>
 const $ = s => document.querySelector(s);
-const ICON = { slack: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15a2 2 0 1 1-2-2h2v2zm1 0a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0v-5zm2-8a2 2 0 1 1 2-2v2H9zm0 1a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4h5zm9 7a2 2 0 1 1 2 2h-2v-2zm-1 0a2 2 0 0 1-4 0V9a2 2 0 0 1 4 0v6zm-2 8a2 2 0 1 1-2 2v-2h2zm0-1a2 2 0 0 1 0-4h5a2 2 0 0 1 0 4h-5z"/></svg>',
+const ICON = {
+  video: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
+  phone: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  slack: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 15a2 2 0 1 1-2-2h2v2zm1 0a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0v-5zm2-8a2 2 0 1 1 2-2v2H9zm0 1a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4h5zm9 7a2 2 0 1 1 2 2h-2v-2zm-1 0a2 2 0 0 1-4 0V9a2 2 0 0 1 4 0v6zm-2 8a2 2 0 1 1-2 2v-2h2zm0-1a2 2 0 0 1 0-4h5a2 2 0 0 1 0 4h-5z"/></svg>',
   chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
-let tz = 'America/New_York';
-let last = null;                 // cached payload, so toggling doesn't refetch
+let tz = Intl.DateTimeFormat().resolvedOptions().timeZone;   // viewer's own zone
+let ownerTz = 'America/New_York';                            // zone the days are grouped by
+let last = null;
+let nextId = null;               // the "starting soon" event, if one is within the hour                 // cached payload, so toggling doesn't refetch
 const KEY = 'miccal.tomorrowOpen';
 let openTomorrow = (() => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } })();
 
@@ -137,9 +147,12 @@ function renderLogin(err) {
 }
 
 function render(d) {
-  tz = d.timezone;
+  ownerTz = d.timezone;
   const now = Date.now();
   const zone = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName').value;
+  // The next event that hasn't started yet; highlighted when it's less than an hour away.
+  const upcoming = d.events.filter(e => !e.allDay && Date.parse(e.start) > now).sort((a, b) => Date.parse(a.start) - Date.parse(b.start))[0];
+  nextId = upcoming && Date.parse(upcoming.start) - now <= 3_600_000 ? upcoming.start + '|' + upcoming.summary : null;
   $('#stamp').textContent = `Updated ${fmtTime(d.generated)} ${zone}`;
   $('#app').innerHTML = `
     <div class="enter">
@@ -182,22 +195,34 @@ function render(d) {
 }
 
 function card(e, now) {
+  const start = e.allDay ? null : Date.parse(e.start);
   const past = !e.allDay && Date.parse(e.end) < now;
-  const live = !e.allDay && Date.parse(e.start) <= now && Date.parse(e.end) >= now;
+  const live = !e.allDay && start <= now && Date.parse(e.end) >= now;
+  const soon = !e.allDay && nextId === e.start + '|' + e.summary;
+  const mins = start ? Math.round((start - now) / 60000) : 0;
+  const countdown = mins <= 0 ? 'now' : mins < 60 ? `in ${mins} min` : `in ${Math.round(mins / 60)} h`;
   const when = e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
   const people = e.attendees.length ? `${e.attendees.length} guest${e.attendees.length === 1 ? '' : 's'}: ${e.attendees.join(', ')}` : '';
-  const isLink = e.location && /^https?:\/\//.test(e.location);
-  const join = e.conference || (isLink ? e.location : null);
-  return `<li class="ev elevated rounded-2xl p-4 ${past ? 'past' : ''} ${live ? 'now' : ''}">
+
+  // Prefer a link you can act on: video room first, then a phone number.
+  const locIsUrl = e.location && /^https?:\/\//.test(e.location);
+  const video = e.conference || (locIsUrl && /zoom\.us|meet\.google|teams\.microsoft|whereby|webex/.test(e.location) ? e.location : null) || (locIsUrl ? e.location : null);
+  const phoneRaw = !locIsUrl && e.location && /^[+(]?[\d][\d\s().+-]{6,}$/.test(e.location.trim()) ? e.location.trim() : null;
+  const videoName = video ? (/zoom\.us/.test(video) ? 'Join Zoom' : /meet\.google/.test(video) ? 'Join Meet' : /teams\./.test(video) ? 'Join Teams' : 'Join call') : null;
+  const action = video ? { href: video, text: videoName, ext: true }
+    : phoneRaw ? { href: 'tel:' + phoneRaw.replace(/[^+\d]/g, ''), text: `Call ${phoneRaw}`, ext: false } : null;
+
+  return `<li class="ev elevated rounded-2xl p-4 ${past ? 'past' : ''} ${live ? 'now' : ''} ${soon ? 'soon' : ''}">
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span class="text-[13px] font-bold tabular-nums">${esc(when)}</span>
-      ${live ? '<span class="text-[10px] tracking-[.2em] uppercase bg-bone text-ink rounded-full px-2 py-[2px] font-bold">Now</span>' : ''}
+      ${live ? '<span class="badge">Now</span>' : soon ? `<span class="badge">Starts ${esc(countdown)}</span>` : ''}
       <span class="text-[15px] font-semibold">${esc(e.summary)}</span>
     </div>
+    ${action ? `<a class="btn act inline-flex items-center gap-2 mt-3 rounded-full bg-bone text-ink font-bold px-4 py-2 text-[12px] tracking-[.12em] uppercase floating"
+         href="${esc(action.href)}"${action.ext ? ' target="_blank" rel="noopener"' : ''}>${action.ext ? ICON.video : ICON.phone} ${esc(action.text)}</a>` : ''}
     <div class="mt-2 space-y-1 text-[13px] text-mute">
       ${people ? `<p>${esc(people)}</p>` : ''}
-      ${e.location && !isLink ? `<p>${esc(e.location)}</p>` : ''}
-      ${join ? `<p><a class="lnk underline text-bone break-all" href="${esc(join)}" target="_blank" rel="noopener">Join link</a></p>` : ''}
+      ${e.location && !locIsUrl && !phoneRaw ? `<p>${esc(e.location)}</p>` : ''}
       <p class="text-smoke text-[12px]">${esc(e.calendar)} · ${esc(e.account)}${e.link ? ` · <a class="lnk underline" href="${esc(e.link)}" target="_blank" rel="noopener">Open in Google</a>` : ''}</p>
     </div>
   </li>`;
@@ -205,7 +230,8 @@ function card(e, now) {
 
 $('#refresh').onclick = load;
 $('#logout').onclick = async () => { await post('/api/admin/logout'); location.reload(); };
-setInterval(load, 5 * 60 * 1000); // keep it current while left open
+setInterval(load, 5 * 60 * 1000);                       // refresh data while left open
+setInterval(() => { if (last) render(last); }, 30_000); // keep the countdown honest
 load();
 </script>
 </body>
