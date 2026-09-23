@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Booking — Blurred Spaces</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { theme: { extend: { colors: { ink: '#0A0A0A', bone: '#EEEBE4', mute: '#8E8B85', smoke: '#55534F' } } } };</script>
+<style>
+  :root { --red: #CC3300; --bone: #EEEBE4; --line: rgba(238,235,228,.09);
+          --spring: cubic-bezier(.34,1.56,.64,1); --ease: cubic-bezier(.22,1,.36,1); }
+  body { font-family: Manrope, system-ui, sans-serif; line-height: 1.7; color: var(--bone); background:
+    radial-gradient(55% 40% at 12% 0%, rgba(238,235,228,.07), transparent 70%),
+    radial-gradient(40% 40% at 100% 100%, rgba(238,235,228,.05), transparent 70%), #0A0A0A; min-height: 100vh; }
+  .display { font-family: 'Bebas Neue', Impact, sans-serif; line-height: .95; letter-spacing: -0.03em; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .42em; text-transform: uppercase; color: #8E8B85; }
+  .surface { background: rgba(17,17,17,.85); border: 1px solid var(--line);
+             box-shadow: 0 1px 0 rgba(238,235,228,.05) inset, 0 12px 32px rgba(0,0,0,.35), 0 40px 90px -20px rgba(0,0,0,.6); }
+  .elevated { background: #181818; border: 1px solid var(--line); }
+  .field { background: #0E0E0E; border: 1px solid rgba(238,235,228,.12); color: var(--bone); }
+  .field:hover { border-color: rgba(238,235,228,.24); }
+  .field:focus { border-color: var(--bone); outline: none; }
+  .field::placeholder { color: #5f5d59; }
+  .btn { transition: transform .35s var(--spring), opacity .2s var(--ease); }
+  .btn:hover { transform: translateY(-2px); } .btn:active { transform: scale(.97); }
+  .btn[disabled] { opacity: .45; transform: none; cursor: not-allowed; }
+  .btn:focus-visible, .field:focus-visible, .lnk:focus-visible, .chip:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+  .lnk { transition: opacity .2s var(--ease); } .lnk:hover { opacity: .7; } .lnk:active { opacity: .5; }
+  .chip { transition: transform .3s var(--spring); border: 1px solid rgba(238,235,228,.18); }
+  .chip:hover { transform: translateY(-1px); } .chip:active { transform: scale(.96); }
+  .chip[aria-pressed="true"] { background: var(--bone); color: #0A0A0A; border-color: var(--bone); font-weight: 700; }
+  .warn { border-color: var(--red); box-shadow: 0 0 0 1px rgba(204,51,0,.45); }
+  .floating { box-shadow: 0 10px 30px -8px rgba(238,235,228,.18), 0 2px 6px rgba(0,0,0,.4); }
+  .enter { animation: enter .5s var(--ease) both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .pop { animation: pop .6s var(--spring) both; }
+  @keyframes pop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E8B85' fill='none' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="max-w-[720px] mx-auto px-4 sm:px-10 py-8 sm:py-12">
+  <header class="flex items-center justify-between gap-4 mb-10">
+    <img src="/logo.png" alt="Blurred Spaces" class="h-10">
+    <nav class="flex items-center gap-4 text-[12px] text-mute">
+      <a class="lnk rounded" href="/today">Today</a>
+      <a class="lnk rounded" href="/admin">Admin</a>
+      <button id="logout" class="btn hidden rounded px-1">Log out</button>
+    </nav>
+  </header>
+  <div id="app"></div>
+</main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const DURATIONS = [15, 30, 45, 60, 90, 120];
+let state = { duration: 30, accounts: [], zoom: false, place: 'zoom' };
+
+const fmtTime = iso => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+const fmtFull = iso => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+const localValue = d => { const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+async function init() {
+  const r = await fetch('/api/admin/accounts');
+  if (r.status === 401) return renderLogin();
+  const d = await r.json();
+  state.accounts = d.accounts_list || d.accounts?.map(a => a.email) || [];
+  state.zoom = !!d.zoom_configured;
+  if (!state.zoom) state.place = 'none';
+  $('#logout').classList.remove('hidden');
+  renderForm();
+}
+
+function renderLogin(err) {
+  $('#app').innerHTML = `
+    <form id="lf" class="surface rounded-[24px] p-8 max-w-[420px] enter">
+      <p class="label">Private</p>
+      <h1 class="display text-[52px] mt-2 mb-6">Open booking</h1>
+      <label class="label block mb-2" for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" class="field w-full rounded-xl px-4 py-3" required>
+      ${err ? `<p class="mt-3 text-[13px] text-[#E8A598]">${esc(err)}</p>` : ''}
+      <button class="btn mt-6 rounded-full bg-bone text-ink font-bold px-8 py-3 text-[13px] tracking-[.18em] uppercase">Enter</button>
+    </form>`;
+  $('#pw').focus();
+  $('#lf').onsubmit = async e => {
+    e.preventDefault();
+    const r = await post('/api/admin/login', { password: $('#pw').value });
+    r.ok ? init() : renderLogin((await r.json()).error);
+  };
+}
+
+function renderForm(err, keep = {}) {
+  const start = new Date(Math.ceil(Date.now() / 900000) * 900000); // next quarter hour
+  $('#app').innerHTML = `
+    <div class="enter">
+      <p class="label">Just for you · no hours, notice, or buffer rules</p>
+      <h1 class="display text-[64px] sm:text-[84px] mt-2 mb-8">Open booking</h1>
+    </div>
+    <form id="f" class="surface rounded-[24px] p-6 sm:p-8 space-y-6 enter" novalidate>
+      <div>
+        <label class="label block mb-2" for="title">Title</label>
+        <input id="title" class="field w-full rounded-xl px-4 py-3 text-[15px]" maxlength="200" placeholder="Hold: studio session" value="${esc(keep.title || '')}">
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label block mb-2" for="when">Starts</label>
+          <input id="when" type="datetime-local" class="field w-full rounded-xl px-4 py-3 text-[15px]" value="${esc(keep.when || localValue(start))}">
+          <p class="text-[11px] text-smoke mt-2">Your device time (${esc(tz.replace(/_/g, ' '))})</p>
+        </div>
+        <div>
+          <span class="label block mb-2">Length</span>
+          <div class="flex flex-wrap gap-2" id="durations">
+            ${DURATIONS.map(m => `<button type="button" class="chip rounded-full px-3 py-2 text-[12px]" data-min="${m}" aria-pressed="${state.duration === m}">${m < 60 ? m + 'm' : (m / 60) + 'h'}</button>`).join('')}
+            <input id="customMin" class="field rounded-full px-3 py-2 text-[12px] w-[86px]" inputmode="numeric" placeholder="min" value="${DURATIONS.includes(state.duration) ? '' : state.duration}">
+          </div>
+        </div>
+      </div>
+      <div id="conflict" class="hidden"></div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label block mb-2" for="place">Where</label>
+          <select id="place" class="field w-full rounded-xl px-4 py-3 text-[15px]">
+            <option value="zoom"${state.place === 'zoom' ? ' selected' : ''}${state.zoom ? '' : ' disabled'}>Zoom${state.zoom ? '' : ' (not configured)'}</option>
+            <option value="phone"${state.place === 'phone' ? ' selected' : ''}>Phone</option>
+            <option value="custom">Somewhere else</option>
+            <option value="none"${state.place === 'none' ? ' selected' : ''}>Nothing / hold</option>
+          </select>
+        </div>
+        <div id="placeExtraWrap" class="hidden">
+          <label class="label block mb-2" for="placeExtra">Details</label>
+          <input id="placeExtra" class="field w-full rounded-xl px-4 py-3 text-[15px]" maxlength="200" placeholder="(973) 555-0142 or an address">
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label block mb-2" for="guest">Invite someone <span class="normal-case tracking-normal">(optional)</span></label>
+          <input id="guest" type="email" class="field w-full rounded-xl px-4 py-3 text-[15px]" maxlength="200" placeholder="them@company.com" value="${esc(keep.guest || '')}">
+          <p class="text-[11px] text-smoke mt-2">Leave empty and no invite is sent.</p>
+        </div>
+        ${state.accounts.length > 1 ? `<div>
+          <label class="label block mb-2" for="account">Calendar</label>
+          <select id="account" class="field w-full rounded-xl px-4 py-3 text-[15px]">
+            ${state.accounts.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+      </div>
+      <div>
+        <label class="label block mb-2" for="notes">Notes</label>
+        <textarea id="notes" class="field w-full rounded-xl px-4 py-3 text-[15px] min-h-[90px]" maxlength="2000" placeholder="Anything to remember">${esc(keep.notes || '')}</textarea>
+      </div>
+      <p id="err" class="text-[13px] text-[#E8A598] ${err ? '' : 'hidden'}" role="alert">${esc(err || '')}</p>
+      <div class="flex flex-wrap items-center gap-4">
+        <button id="submit" class="btn rounded-full bg-bone text-ink font-bold px-8 py-4 text-[14px] tracking-[.18em] uppercase floating inline-flex items-center gap-3">Put it on the calendar</button>
+        <span id="summary" class="text-[13px] text-mute"></span>
+      </div>
+    </form>`;
+
+  const durBtns = [...document.querySelectorAll('[data-min]')];
+  const setDur = (m, fromCustom) => {
+    state.duration = m;
+    durBtns.forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.min === m)));
+    if (!fromCustom) $('#customMin').value = DURATIONS.includes(m) ? '' : m;
+    updateSummary();
+  };
+  durBtns.forEach(b => b.onclick = () => setDur(+b.dataset.min));
+  $('#customMin').oninput = e => { const v = parseInt(e.target.value, 10); if (v > 0) setDur(v, true); };
+  $('#when').onchange = updateSummary;
+  $('#place').onchange = () => {
+    const v = $('#place').value;
+    state.place = v;
+    $('#placeExtraWrap').classList.toggle('hidden', v !== 'phone' && v !== 'custom');
+    $('#placeExtra').placeholder = v === 'phone' ? '(973) 555-0142' : 'Studio A, 123 Main St';
+  };
+  $('#f').onsubmit = submit;
+  updateSummary();
+}
+
+let conflictTimer;
+function updateSummary() {
+  const when = $('#when').value;
+  if (!when) return;
+  const startMs = new Date(when).getTime();
+  const endMs = startMs + state.duration * 60000;
+  $('#summary').textContent = `${fmtFull(new Date(startMs).toISOString())} – ${fmtTime(new Date(endMs).toISOString())}`;
+  clearTimeout(conflictTimer);
+  conflictTimer = setTimeout(() => checkConflicts(startMs, endMs), 350);
+}
+
+async function checkConflicts(startMs, endMs) {
+  const host = $('#conflict');
+  if (!host) return;
+  try {
+    const r = await fetch(`/api/conflicts?start=${new Date(startMs).toISOString()}&end=${new Date(endMs).toISOString()}`);
+    const d = await r.json();
+    if (!r.ok || !d.conflicts?.length) { host.className = 'hidden'; host.innerHTML = ''; return; }
+    host.className = 'elevated warn rounded-xl px-4 py-3 text-[13px]';
+    host.innerHTML = `<span class="font-semibold">Heads up:</span> you're already busy
+      ${d.conflicts.slice(0, 3).map(c => `${fmtTime(c.start)}–${fmtTime(c.end)}`).join(', ')}.
+      <span class="text-mute">Booking anyway is fine.</span>`;
+  } catch { host.className = 'hidden'; }
+}
+
+async function submit(e) {
+  e.preventDefault();
+  const btn = $('#submit'), err = $('#err');
+  const when = $('#when').value;
+  const fail = m => { err.textContent = m; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'Put it on the calendar'; };
+  if (!when) return fail('Pick a date and time.');
+  const place = $('#place').value;
+  const extra = $('#placeExtra')?.value.trim() || '';
+  const payload = {
+    title: $('#title').value.trim() || 'Hold',
+    start: new Date(when).toISOString(),
+    duration: state.duration,
+    guest: $('#guest').value.trim(),
+    notes: $('#notes').value.trim(),
+    account: $('#account')?.value,
+    location: place === 'custom' ? (extra || 'none') : place,
+    phone: place === 'phone' ? extra : '',
+  };
+  btn.disabled = true; btn.innerHTML = '<span class="spin w-4 h-4 rounded-full border-2 border-ink/30 border-t-ink"></span> Booking…';
+  try {
+    const r = await post('/api/open', payload);
+    const d = await r.json();
+    if (!r.ok) return fail(d.error || 'Could not create the event.');
+    renderDone(d, payload);
+  } catch (ex) { fail(ex.message); }
+}
+
+function renderDone(d, sent) {
+  $('#app').innerHTML = `
+    <div class="surface rounded-[24px] p-8 text-center enter max-w-[520px] mx-auto">
+      <div class="pop mx-auto w-16 h-16 rounded-full bg-bone text-ink grid place-items-center floating">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <p class="label mt-6">On your calendar</p>
+      <h1 class="display text-[48px] mt-2">${esc(d.title)}</h1>
+      <div class="elevated rounded-2xl p-5 mt-6 text-left space-y-2 text-[14px] text-mute">
+        <p class="text-bone">${esc(fmtFull(d.start))} – ${esc(fmtTime(d.end))}</p>
+        <p>${esc(d.account)}</p>
+        ${sent.guest ? `<p>Invite sent to <span class="text-bone">${esc(sent.guest)}</span></p>` : ''}
+        ${d.join_link ? `<p><a class="lnk underline text-bone break-all" href="${esc(d.join_link)}" target="_blank" rel="noopener">${esc(d.join_link)}</a></p>` : ''}
+      </div>
+      <div class="flex flex-wrap justify-center gap-3 mt-6">
+        <button id="again" class="btn rounded-full bg-bone text-ink font-bold px-6 py-3 text-[12px] tracking-[.18em] uppercase">Book another</button>
+        ${d.link ? `<a class="btn rounded-full border border-white/20 px-6 py-3 text-[12px] font-semibold" href="${esc(d.link)}" target="_blank" rel="noopener">Open in Google</a>` : ''}
+        <a class="btn rounded-full border border-white/20 px-6 py-3 text-[12px] font-semibold" href="/today">See today</a>
+      </div>
+    </div>`;
+  $('#again').onclick = () => renderForm();
+}
+
+$('#logout').onclick = async () => { await post('/api/admin/logout'); location.reload(); };
+init();
+</script>
+</body>
+</html>

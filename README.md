@@ -91,6 +91,14 @@ What it shows:
 
 Scanning is capped (50 DMs, 60 channels) and cached for 60 seconds to stay inside Slack's rate limits.
 
+## 5. Open booking (`/open`, owner-only)
+
+A private page for putting anything on your own calendar, ignoring every rule the public page follows: no working hours, no minimum notice, no buffer, any length from 5 minutes to 12 hours, any day.
+
+- Same password as `/admin`, `noindex`, and not linked from the public site.
+- Picks the calendar (when several Google accounts are connected), optional Zoom link, phone number or free-text location, and an optional guest, who is the only case where an invite email is sent.
+- Shows a red "you're already busy" warning when the slot overlaps something, but never blocks the booking.
+
 ## Settings (`miccal.config.json`)
 
 Edit the file, commit, and push. Netlify redeploys automatically.

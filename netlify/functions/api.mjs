@@ -449,6 +449,73 @@ async function apiToday(accounts) {
   });
 }
 
+// ---------------------------------------------------------------- /open (owner-only, no constraints)
+// Books any time on any connected calendar: no working hours, notice, or buffer checks.
+async function apiConflicts(url, accounts) {
+  const start = Date.parse(url.searchParams.get("start"));
+  const end = Date.parse(url.searchParams.get("end"));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return json(400, { error: "Bad range" });
+  if (!accounts.length) return json(200, { conflicts: [] });
+  const busy = await fetchBusy(accounts, start, end);
+  // Merge overlaps so a mirrored event on two calendars is reported once.
+  const merged = [];
+  for (const [bs, be] of busy.filter(([x, y]) => x < end && y > start).sort((x, y) => x[0] - y[0])) {
+    const tail = merged[merged.length - 1];
+    if (tail && bs <= tail[1]) tail[1] = Math.max(tail[1], be);
+    else merged.push([bs, be]);
+  }
+  return json(200, { conflicts: merged.map(([bs, be]) => ({ start: iso(bs), end: iso(be) })) });
+}
+
+async function apiOpenBook(body, accounts) {
+  if (!accounts.length) return json(400, { error: "Connect a Google account first." });
+  const title = String(body.title || "").trim().slice(0, 200) || "Hold";
+  const notes = String(body.notes || "").trim().slice(0, 2000);
+  const guest = String(body.guest || "").trim().slice(0, 200);
+  const place = String(body.location || "none");           // zoom | phone | none | free text
+  const phone = String(body.phone || "").trim().slice(0, 30);
+  const start = Date.parse(String(body.start || ""));
+  const minutes = Math.min(Math.max(parseInt(body.duration, 10) || 30, 5), 12 * 60);
+  if (!Number.isFinite(start)) return json(400, { error: "Pick a date and time." });
+  if (guest && !EMAIL_RE.test(guest)) return json(400, { error: "That guest email doesn't look right." });
+  const end = start + minutes * 60_000;
+
+  const acct = accounts.find(a => a.email === body.account) || bookingAccount(accounts);
+  let zoom = null;
+  if (place === "zoom") {
+    zoom = await createZoomMeeting({ topic: title, start, duration: minutes, agenda: notes || title });
+  }
+  const joinInfo = zoom
+    ? [`Join Zoom meeting: ${zoom.join_url}`, `Meeting ID: ${String(zoom.id).replace(/(\d{3})(\d{4})(\d+)/, "$1 $2 $3")}`,
+       zoom.password && `Passcode: ${zoom.password}`].filter(Boolean).join("\n") + "\n\n"
+    : "";
+
+  const ev = {
+    summary: title,
+    description: joinInfo + notes,
+    start: { dateTime: iso(start), timeZone: cfg.timezone },
+    end: { dateTime: iso(end), timeZone: cfg.timezone },
+    reminders: { useDefault: true },
+  };
+  if (zoom) ev.location = zoom.join_url;
+  else if (place === "phone" && phone) ev.location = phone;
+  else if (place && !["none", "zoom", "phone"].includes(place)) ev.location = place.slice(0, 200);
+  if (guest) ev.attendees = [{ email: guest }];
+
+  let created;
+  try {
+    created = await gcal(acct, `/calendars/primary/events?sendUpdates=${guest ? "all" : "none"}&conferenceDataVersion=1`, "POST", ev);
+  } catch (e) {
+    if (zoom) await zoomApi(`/meetings/${zoom.id}`, "DELETE").catch(() => {});
+    throw e;
+  }
+  busyCache.clear();
+  return json(200, {
+    ok: true, title, start: iso(start), end: iso(end), account: acct.email,
+    join_link: zoom?.join_url || created.hangoutLink || null, link: created.htmlLink || null,
+  });
+}
+
 // ---------------------------------------------------------------- admin routes
 async function apiLogin(body) {
   if (!env("ADMIN_PASSWORD")) return json(400, { error: "Set ADMIN_PASSWORD in Netlify environment variables first." });
@@ -470,6 +537,7 @@ async function apiAccounts(accounts) {
     accounts: out, base_url: BASE_URL(), redirect_uri: REDIRECT_URI(),
     google_configured: !!env("GOOGLE_CLIENT_ID"),
     zoom_configured: zoomConfigured(),
+    accounts_list: accounts.map(a => a.email),
     slack_configured: slackConfigured(),
     zoom_needed: cfg.event_types.some(e => e.location === "zoom"),
     event_types: cfg.event_types.map(e => ({ slug: e.slug, title: e.title })),
@@ -540,6 +608,7 @@ export default async (req, context) => {
         try { return json(200, await slackSummary()); }
         catch (e) { return json(200, { configured: true, error: e.message, dms: [], mentions: [], dmTotal: 0, mentionTotal: 0 }); }
       }
+      if (path === "/api/conflicts") return admin ? await apiConflicts(url, accounts) : json(401, { error: "Login required" });
       if (path === "/api/today") return admin ? await apiToday(accounts) : json(401, { error: "Login required" });
       if (path === "/api/admin/accounts") return admin ? await apiAccounts(accounts) : json(401, { error: "Login required" });
       if (path === "/admin/connect") return admin ? await oauthStart() : redirect("/admin");
@@ -550,6 +619,10 @@ export default async (req, context) => {
       if (path === "/api/admin/login") return await apiLogin(body);
       if (path === "/api/admin/logout") return json(200, { ok: true }, { "Set-Cookie": setCookie("mc_admin", "", 0) });
       if (!admin) return json(401, { error: "Login required" });
+      if (path === "/api/open") {
+        if (!admin) return json(401, { error: "Login required" });
+        return await apiOpenBook(body, accounts);
+      }
       if (path === "/api/slack/seen") {
         await store().set("slack_seen", String(Date.now() / 1000));
         slackCache = null;

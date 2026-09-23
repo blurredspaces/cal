@@ -42,6 +42,11 @@
   status = 200
 
 [[redirects]]
+  from = "/open"
+  to = "/open.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
@@ -51,6 +56,11 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "same-origin"
+
+[[headers]]
+  for = "/open*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
 
 [[headers]]
   for = "/today*"
