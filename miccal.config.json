@@ -43,7 +43,7 @@
   },
   "slot_interval": 30,
   "buffer_minutes": 15,
-  "min_notice_hours": 12,
+  "min_notice_hours": 2,
   "max_days_ahead": 45,
   "mirror_to_other_calendars": true,
   "event_types": [
