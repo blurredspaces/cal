@@ -99,6 +99,21 @@ A private page for putting anything on your own calendar, ignoring every rule th
 - Picks the calendar (when several Google accounts are connected), optional Zoom link, phone number or free-text location, and an optional guest, who is the only case where an invite email is sent.
 - Shows a red "you're already busy" warning when the slot overlaps something, but never blocks the booking.
 
+## Brand pages (profiles)
+
+`miccal.config.json` holds a `profiles` block, one per brand. Each profile has its own branding, background, session copy and — importantly — its own calendar:
+
+| URL | Brand | Books onto |
+|---|---|---|
+| `/blurredspaces` (and the bare root of book.blurredspaces.com) | Blurred Spaces | the Google account whose address contains `blurredspaces` |
+| `/8tivlabs` | 8tivLabs | the Google account whose address contains `8tiv` |
+| bare root of any other host (book.micfox.co) | — | a chooser page |
+
+- `account_hint` matches the connected Google account by email; `/admin` shows which account each brand resolves to and lets you override it.
+- `mirror_to_other_calendars` is **false** for both, so a booking lands on one calendar only.
+- `check_all_calendars` is **true**: availability always subtracts busy time from *every* connected calendar, so the two brands can never double-book you.
+- Legacy links such as `/intro` still work; they resolve to the brand implied by the hostname.
+
 ## Settings (`miccal.config.json`)
 
 Edit the file, commit, and push. Netlify redeploys automatically.

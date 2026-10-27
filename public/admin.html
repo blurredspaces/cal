@@ -90,20 +90,41 @@ function render(d) {
     </section>
 
     <section class="mt-14">
-      <p class="label mb-4">Share links</p>
-      <div class="space-y-3">
-        ${[{ slug: '', title: 'All sessions' }, ...d.event_types].map(e => {
-          const url = d.base_url + '/' + e.slug;
-          return `<div class="elevated rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-            <div><p class="font-semibold text-[14px]">${esc(e.title)}</p><p class="text-mute text-[13px] break-all">${esc(url)}</p></div>
-            <button class="btn copy rounded-full border border-white/20 px-5 py-2 text-[12px] font-semibold shrink-0" data-url="${esc(url)}">Copy link</button>
-          </div>`; }).join('')}
+      <p class="label mb-4">Brand pages</p>
+      <div class="space-y-6">
+        ${(d.profiles || []).map(p => `
+          <div class="surface rounded-[20px] p-5 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <p class="text-[17px] font-semibold">${esc(p.company)}</p>
+                <p class="text-[12px] text-mute">Books onto <span class="text-bone">${esc(p.books_to || 'no account connected')}</span></p>
+              </div>
+              <label class="text-[12px] text-mute flex items-center gap-2">Calendar
+                <select class="field rounded-lg px-3 py-2 text-[13px]" data-profile="${esc(p.slug)}">
+                  <option value="">Auto (${esc(p.slug)})</option>
+                  ${d.accounts.map(a => `<option value="${esc(a.email)}"${a.email === p.books_to ? ' selected' : ''}>${esc(a.email)}</option>`).join('')}
+                </select>
+              </label>
+            </div>
+            <div class="space-y-2">
+              ${[{ slug: '', title: 'All sessions' }, ...p.event_types].map(e => {
+                const url = `${d.base_url}/${p.slug}${e.slug ? '/' + e.slug : ''}`;
+                return `<div class="elevated rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+                  <div><p class="font-semibold text-[13px]">${esc(e.title)}</p><p class="text-mute text-[12px] break-all">${esc(url)}</p></div>
+                  <button class="btn copy rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold shrink-0" data-url="${esc(url)}">Copy link</button>
+                </div>`; }).join('')}
+            </div>
+          </div>`).join('')}
       </div>
       <p class="text-[12px] text-smoke mt-3">Hours, durations, buffers and branding live in <code>config.json</code>.</p>
     </section>`;
 
   document.querySelectorAll('.copy').forEach(b => b.onclick = async () => {
     await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy link', 1400);
+  });
+  document.querySelectorAll('[data-profile]').forEach(sel => sel.onchange = async () => {
+    await post('/api/admin/profile', { profile: sel.dataset.profile, email: sel.value });
+    load();
   });
   document.querySelectorAll('[data-save]').forEach(f => f.onchange = async () => {
     const email = f.dataset.save;

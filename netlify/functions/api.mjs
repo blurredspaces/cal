@@ -177,16 +177,54 @@ function rateLimited(ip, limit = 8, windowMs = 3_600_000) {
   return recent.length >= limit;
 }
 
+// ---------------------------------------------------------------- profiles (one brand per page)
+const profileSlugs = () => Object.keys(cfg.profiles);
+const isProfile = slug => Object.prototype.hasOwnProperty.call(cfg.profiles, slug);
+
+// Which brand a request is for: explicit path/query wins, then the hostname, then the default.
+function resolveProfile(url, req, explicit) {
+  if (explicit && isProfile(explicit)) return explicit;
+  const host = (req.headers.get("host") || "").toLowerCase();
+  for (const [slug, p] of Object.entries(cfg.profiles)) {
+    if ((p.domains || []).some(d => host.includes(String(d).toLowerCase()))) return slug;
+  }
+  return null;                       // no brand implied: the page shows a chooser
+}
+const profileOr = (slug) => cfg.profiles[slug] || cfg.profiles[cfg.default_profile];
+
+// The calendar a brand books onto: an override set in admin, else the email hint, else the default.
+async function accountForProfile(slug, accounts) {
+  const overrides = (await store().get("profile_accounts", { type: "json" })) || {};
+  const picked = overrides[slug] && accounts.find(a => a.email === overrides[slug]);
+  if (picked) return picked;
+  const hint = (cfg.profiles[slug]?.account_hint || "").toLowerCase();
+  const byHint = hint && accounts.find(a => a.email.toLowerCase().includes(hint));
+  return byHint || bookingAccount(accounts);
+}
+
+const publicProfiles = () => profileSlugs().map(slug => ({
+  slug, ...cfg.profiles[slug].brand, logo: cfg.profiles[slug].logo, background: cfg.profiles[slug].background,
+}));
+
 // ---------------------------------------------------------------- public routes
-function apiConfig(accounts) {
+function apiConfig(url, req, accounts) {
+  const slug = resolveProfile(url, req, url.searchParams.get("profile"));
+  const base = {
+    timezone: cfg.timezone, max_days_ahead: cfg.max_days_ahead ?? 60,
+    demo: accounts.length === 0, profiles: publicProfiles(), default_profile: cfg.default_profile,
+  };
+  if (!slug) return json(200, { ...base, profile: null });   // chooser
+  const p = cfg.profiles[slug];
   return json(200, {
-    brand: cfg.brand, timezone: cfg.timezone, max_days_ahead: cfg.max_days_ahead ?? 60,
-    event_types: cfg.event_types.map(e => ({ ...e, location: locationOf(e) })), demo: accounts.length === 0,
+    ...base, profile: slug, brand: p.brand, logo: p.logo, background: p.background,
+    background_opacity: p.background_opacity,
+    event_types: p.event_types.map(e => ({ ...e, location: locationOf(e) })),
   });
 }
 
-async function apiSlots(url, accounts) {
-  const event = cfg.event_types.find(e => e.slug === url.searchParams.get("event"));
+async function apiSlots(url, req, accounts) {
+  const slug = resolveProfile(url, req, url.searchParams.get("profile")) || cfg.default_profile;
+  const event = profileOr(slug).event_types.find(e => e.slug === url.searchParams.get("event"));
   if (!event) return json(404, { error: "Unknown event type" });
   const start = Date.parse(url.searchParams.get("start")), end = Date.parse(url.searchParams.get("end"));
   if (!Number.isFinite(start) || !Number.isFinite(end)) return json(400, { error: "start and end must be ISO timestamps" });
@@ -196,7 +234,10 @@ async function apiSlots(url, accounts) {
 }
 
 async function apiBook(req, body, accounts, ip) {
-  const event = cfg.event_types.find(e => e.slug === String(body.event || ""));
+  const url = new URL(req.url);
+  const slug = resolveProfile(url, req, String(body.profile || "")) || cfg.default_profile;
+  const profile = profileOr(slug);
+  const event = profile.event_types.find(e => e.slug === String(body.event || ""));
   const name = String(body.name || "").trim().slice(0, 120);
   const email = String(body.email || "").trim().slice(0, 200);
   const notes = String(body.notes || "").trim().slice(0, 2000);
@@ -218,10 +259,10 @@ async function apiBook(req, body, accounts, ip) {
   const fresh = await computeSlots(cfg, event, start, end, busyGetter(accounts, false));
   if (!fresh.includes(start)) return json(409, { error: "That time was just taken. Please pick another." });
 
-  const host = cfg.brand.host_name;
+  const host = profile.brand.host_name;
   const summary = `${event.title}: ${name} × ${host}`;
   const description = [
-    `Booked via ${cfg.brand.company} scheduling.`,
+    `Booked via ${profile.brand.company} scheduling.`,
     `Guest: ${name} <${email}>`,
     phone && `Mobile: ${phone}`,
     guestTz && `Guest time zone: ${guestTz}`,
@@ -241,7 +282,7 @@ async function apiBook(req, body, accounts, ip) {
        zoom.password && `Passcode: ${zoom.password}`].filter(Boolean).join("\n") + "\n\n"
     : "";
 
-  const primary = bookingAccount(accounts);
+  const primary = await accountForProfile(slug, accounts);
   const ev = {
     summary, description: joinInfo + description,
     start: { dateTime: iso(start), timeZone: cfg.timezone },
@@ -266,7 +307,7 @@ async function apiBook(req, body, accounts, ip) {
   const joinLink = zoom?.join_url || created.hangoutLink || null;
 
   // Optional hold on the other connected calendars so they show the time too.
-  if (cfg.mirror_to_other_calendars) {
+  if (profile.mirror_to_other_calendars) {
     await Promise.all(accounts.filter(a => a.email !== primary.email).map(a =>
       gcal(a, "/calendars/primary/events", "POST", {
         summary, start: ev.start, end: ev.end, location: ev.location,
@@ -539,8 +580,12 @@ async function apiAccounts(accounts) {
     zoom_configured: zoomConfigured(),
     accounts_list: accounts.map(a => a.email),
     slack_configured: slackConfigured(),
-    zoom_needed: cfg.event_types.some(e => e.location === "zoom"),
-    event_types: cfg.event_types.map(e => ({ slug: e.slug, title: e.title })),
+    zoom_needed: Object.values(cfg.profiles).some(p => p.event_types.some(e => e.location === "zoom")),
+    profiles: await Promise.all(profileSlugs().map(async slug => ({
+      slug, company: cfg.profiles[slug].brand.company,
+      books_to: (await accountForProfile(slug, accounts))?.email || null,
+      event_types: cfg.profiles[slug].event_types.map(e => ({ slug: e.slug, title: e.title })),
+    }))),
   });
 }
 
@@ -600,8 +645,8 @@ export default async (req, context) => {
   try {
     const accounts = await readAccounts();
     if (req.method === "GET") {
-      if (path === "/api/config") return apiConfig(accounts);
-      if (path === "/api/slots") return await apiSlots(url, accounts);
+      if (path === "/api/config") return apiConfig(url, req, accounts);
+      if (path === "/api/slots") return await apiSlots(url, req, accounts);
       if (path === "/api/slack") {
         if (!admin) return json(401, { error: "Login required" });
         if (!slackConfigured()) return json(200, { configured: false });
@@ -626,6 +671,15 @@ export default async (req, context) => {
       if (path === "/api/slack/seen") {
         await store().set("slack_seen", String(Date.now() / 1000));
         slackCache = null;
+        return json(200, { ok: true });
+      }
+      if (path === "/api/admin/profile") {
+        const overrides = (await store().get("profile_accounts", { type: "json" })) || {};
+        if (isProfile(body.profile)) {
+          if (body.email) overrides[body.profile] = String(body.email);
+          else delete overrides[body.profile];
+          await store().setJSON("profile_accounts", overrides);
+        }
         return json(200, { ok: true });
       }
       if (path === "/api/admin/accounts/update") return await apiAccountUpdate(body, accounts);

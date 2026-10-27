@@ -1,11 +1,4 @@
 {
-  "brand": {
-    "company": "Blurred Spaces",
-    "tagline": "Creatively Strategic",
-    "host_name": "Mic Fox",
-    "host_title": "Founder, Blurred Spaces",
-    "website": "https://blurredspaces.com"
-  },
   "timezone": "America/New_York",
   "working_hours": {
     "mon": [
@@ -45,35 +38,109 @@
   "buffer_minutes": 15,
   "min_notice_hours": 2,
   "max_days_ahead": 45,
-  "mirror_to_other_calendars": true,
-  "event_types": [
-    {
-      "slug": "call",
-      "title": "Call",
-      "duration": 30,
-      "location": "phone",
-      "description": "A 30-minute phone call. Leave your mobile number and Mic will call you at the scheduled time."
+  "check_all_calendars": true,
+  "default_profile": "blurredspaces",
+  "brand": {
+    "company": "Blurred Spaces",
+    "tagline": "Creatively Strategic",
+    "host_name": "Mic Fox",
+    "host_title": "Founder, Blurred Spaces",
+    "website": "https://blurredspaces.com"
+  },
+  "profiles": {
+    "blurredspaces": {
+      "brand": {
+        "company": "Blurred Spaces",
+        "tagline": "Creatively Strategic",
+        "host_name": "Mic Fox",
+        "website": "https://blurredspaces.com"
+      },
+      "logo": "/logo.png",
+      "background": "/bg.jpg",
+      "account_hint": "blurredspaces",
+      "domains": [
+        "book.blurredspaces.com",
+        "blurredspaces"
+      ],
+      "mirror_to_other_calendars": false,
+      "event_types": [
+        {
+          "slug": "call",
+          "title": "Call",
+          "duration": 30,
+          "location": "phone",
+          "description": "A 30-minute phone call. Leave your mobile number and Mic will call you at the scheduled time."
+        },
+        {
+          "slug": "meeting",
+          "title": "55 Min Mtg",
+          "duration": 55,
+          "location": "zoom",
+          "description": "A focused working session on brand, content, or launch strategy. Come with the problem; leave with a plan."
+        },
+        {
+          "slug": "quick-sync",
+          "title": "Quick Sync",
+          "duration": 15,
+          "location": "zoom",
+          "description": "A quick Zoom sync with Mic Fox for a status update."
+        },
+        {
+          "slug": "sync",
+          "title": "30 Min Sync",
+          "duration": 30,
+          "location": "zoom",
+          "description": "A 30-minute Zoom check-in to review progress, clear blockers, and line up next steps."
+        }
+      ],
+      "background_opacity": 0.5
     },
-    {
-      "slug": "meeting",
-      "title": "55 Min Mtg",
-      "duration": 55,
-      "location": "zoom",
-      "description": "A focused working session on brand, content, or launch strategy. Come with the problem; leave with a plan."
-    },
-    {
-      "slug": "quick-sync",
-      "title": "Quick Sync",
-      "duration": 15,
-      "location": "zoom",
-      "description": "A quick Zoom sync with Mic Fox for a status update."
-    },
-    {
-      "slug": "sync",
-      "title": "30 Min Sync",
-      "duration": 30,
-      "location": "zoom",
-      "description": "A 30-minute Zoom check-in to review progress, clear blockers, and line up next steps."
+    "8tivlabs": {
+      "brand": {
+        "company": "8tivLabs",
+        "tagline": "Culture. Strategy. Impact.",
+        "host_name": "Mic Fox",
+        "website": "https://8tivlabs.com"
+      },
+      "logo": "/8tivlabs.png",
+      "background": "/8tiv-bg.jpg",
+      "account_hint": "8tiv",
+      "domains": [
+        "book.8tivlabs.com",
+        "8tiv"
+      ],
+      "mirror_to_other_calendars": false,
+      "event_types": [
+        {
+          "slug": "call",
+          "title": "Call",
+          "duration": 30,
+          "location": "phone",
+          "description": "A 30-minute phone call with Mic Fox. Leave your mobile number and he'll call you at the scheduled time."
+        },
+        {
+          "slug": "meeting",
+          "title": "55 Min Mtg",
+          "duration": 55,
+          "location": "zoom",
+          "description": "A focused working session on partnerships, campaigns, or activation strategy. Come with the problem; leave with a plan."
+        },
+        {
+          "slug": "quick-sync",
+          "title": "Quick Sync",
+          "duration": 15,
+          "location": "zoom",
+          "description": "A quick Zoom sync with Mic Fox for a status update."
+        },
+        {
+          "slug": "sync",
+          "title": "30 Min Sync",
+          "duration": 30,
+          "location": "zoom",
+          "description": "A 30-minute Zoom check-in to review progress, clear blockers, and line up next steps."
+        }
+      ],
+      "background_opacity": 0.18
     }
-  ]
+  }
 }
