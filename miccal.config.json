@@ -103,7 +103,7 @@
         "website": "https://8tivlabs.com"
       },
       "logo": "/8tivlabs.png",
-      "background": "/8tiv-bg.jpg",
+      "background": "/8tiv-bg.jpg?v=2",
       "account_hint": "8tiv",
       "domains": [
         "book.8tivlabs.com",
@@ -140,7 +140,8 @@
           "description": "A 30-minute Zoom check-in to review progress, clear blockers, and line up next steps."
         }
       ],
-      "background_opacity": 0.18
+      "background_opacity": 0.3,
+      "background_position": "center"
     }
   }
 }

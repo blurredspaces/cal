@@ -212,12 +212,13 @@ function apiConfig(url, req, accounts) {
   const base = {
     timezone: cfg.timezone, max_days_ahead: cfg.max_days_ahead ?? 60,
     demo: accounts.length === 0, profiles: publicProfiles(), default_profile: cfg.default_profile,
+    host_profile: resolveProfile(url, req, null),
   };
   if (!slug) return json(200, { ...base, profile: null });   // chooser
   const p = cfg.profiles[slug];
   return json(200, {
     ...base, profile: slug, brand: p.brand, logo: p.logo, background: p.background,
-    background_opacity: p.background_opacity,
+    background_opacity: p.background_opacity, background_position: p.background_position,
     event_types: p.event_types.map(e => ({ ...e, location: locationOf(e) })),
   });
 }

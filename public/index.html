@@ -185,12 +185,28 @@ document.addEventListener('click', e => {
 
 function pathParts() { return location.pathname.split('/').filter(Boolean); }
 
-async function init() {
-  const first = pathParts()[0] || '';
-  state.cfg = await fetch('/api/config?profile=' + encodeURIComponent(first)).then(r => r.json());
-  state.profile = state.cfg.profile;                      // null = show the brand chooser
+const knownProfile = slug => (state.cfg?.profiles || []).some(p => p.slug === slug);
+
+async function loadProfile(slug) {
+  state.cfg = await fetch('/api/config?profile=' + encodeURIComponent(slug || '')).then(r => r.json());
+  state.hostProfile = state.cfg.host_profile ?? null;
+  state.profile = state.cfg.profile;
+  Object.assign(state, { event: null, slots: {}, rawSlots: [], date: null, slot: null, booked: null, error: null, month: null, autoAdvanced: false });
   if (state.profile) applyBrand(state.cfg);
+  else resetBrand();
+}
+
+async function init() {
+  await loadProfile(pathParts()[0] || '');
   route();
+}
+
+// Back to the neutral look used by the brand chooser.
+function resetBrand() {
+  const photo = $('.atmos .photo');
+  photo.style.backgroundImage = "url('/bg.jpg')";
+  photo.style.opacity = 0.5;
+  photo.style.backgroundPosition = 'center';
 }
 
 // Swap logo, tagline, background and footer link for whichever brand this page is.
@@ -199,18 +215,23 @@ function applyBrand(c) {
   $('#tagline').textContent = b.tagline;
   $('#foot-co').textContent = `© ${new Date().getFullYear()} ${b.company}`;
   $('#foot-co').href = b.website || '/';
+  $('#tagline').href = state.profile && !state.hostProfile ? '/' + state.profile : '/';
   const logo = $('#brand-logo');
   if (logo) { logo.src = c.logo || '/logo.png'; logo.alt = b.company; }
   const photo = $('.atmos .photo');
   if (c.background) photo.style.backgroundImage = `url('${c.background}')`;
   if (c.background_opacity != null) photo.style.opacity = c.background_opacity;
+  photo.style.backgroundPosition = c.background_position || 'center';
 }
 
 const base = () => (state.profile ? '/' + state.profile : '');
 
-function route() {
+async function route() {
   const parts = pathParts();
   window.scrollTo({ top: 0 });
+  // Which brand this URL means: an explicit /<profile> segment, else whatever the domain implies.
+  const wanted = knownProfile(parts[0]) ? parts[0] : state.hostProfile;
+  if (wanted !== state.profile) await loadProfile(wanted || '');
   if (!state.profile) return renderChooser();
   // /<profile>/<event> or, for a brand implied by the domain, just /<event>
   const slug = parts[0] === state.profile ? (parts[1] || '') : (parts[0] || '');
