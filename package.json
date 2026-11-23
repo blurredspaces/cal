@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "description": "Blurred Spaces branded scheduling (Netlify)",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "@netlify/blobs": "^11.1.0"
+    "@netlify/blobs": "11.1.9"
   }
 }
